@@ -52,7 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-sign-in-alt"></i> Login</button>
             </form>
-            <p style="text-align:center;margin-top:16px;font-size:11px;color:#aaa;">Default: admin / admin</p>
         </div>
     </div>
 </body>
