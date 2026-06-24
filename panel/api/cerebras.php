@@ -43,7 +43,9 @@ curl_setopt_array($ch, [
         'Content-Type: application/json',
         'Authorization: Bearer ' . $apiKey,
     ],
-    CURLOPT_TIMEOUT => 60,
+    CURLOPT_TIMEOUT => 120,
+    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_SSL_VERIFYHOST => false,
 ]);
 
 $response = curl_exec($ch);
@@ -52,7 +54,10 @@ $error = curl_error($ch);
 curl_close($ch);
 
 if ($error) jsonResponse(['error' => 'Curl error: ' . $error], 500);
-if ($httpCode !== 200) jsonResponse(['error' => 'API error: HTTP ' . $httpCode . ' - ' . substr($response, 0, 500)], 500);
+if ($httpCode !== 200) {
+    $errMsg = $response ? substr($response, 0, 500) : 'No response body';
+    jsonResponse(['error' => 'API error (HTTP ' . $httpCode . '): ' . $errMsg], 500);
+}
 
 $data = json_decode($response, true);
 $html = $data['choices'][0]['message']['content'] ?? '';
