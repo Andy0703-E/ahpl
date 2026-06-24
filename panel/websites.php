@@ -111,14 +111,19 @@ async function createWebsite() {
         document.getElementById('aiStatus').style.display = 'none';
     }
     
-    const res = await AHPL.api('/panel/api/websites.php', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'create', name, folder, html: aiHtml })
-    });
-    
-    if (res.success) {
-        AHPL.toast(useAI ? 'Website dibuat dengan AI!' : 'Website dibuat!');
-        setTimeout(() => location.reload(), 500);
+    try {
+        const res = await AHPL.api('/panel/api/websites.php', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'create', name, folder, html: aiHtml })
+        });
+        
+        if (res.success) {
+            document.getElementById('createModal').classList.remove('active');
+            AHPL.toast(useAI ? 'Website dibuat dengan AI!' : 'Website dibuat!');
+            setTimeout(() => location.reload(), 500);
+        }
+    } catch (e) {
+        AHPL.toast(e.message || 'Gagal membuat website', 'error');
     }
     
     document.getElementById('createBtn').disabled = false;
