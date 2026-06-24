@@ -29,7 +29,12 @@ if ($method === 'POST') {
         $dir = WEBSITES_PATH . '/' . $folder;
         if (!is_dir($dir)) mkdir($dir, 0755, true);
         
-        file_put_contents($dir . '/index.html', "<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><title>" . htmlspecialchars($name) . "</title></head>\n<body><h1>" . htmlspecialchars($name) . "</h1><p>Website ini berhasil dibuat!</p></body>\n</html>");
+        $html = $input['html'] ?? '';
+        if (!empty($html)) {
+            file_put_contents($dir . '/index.html', $html);
+        } else {
+            file_put_contents($dir . '/index.html', "<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><title>" . htmlspecialchars($name) . "</title></head>\n<body><h1>" . htmlspecialchars($name) . "</h1><p>Website ini berhasil dibuat!</p></body>\n</html>");
+        }
         
         $stmt = $db->prepare("INSERT INTO websites (name, folder) VALUES (:name, :folder)");
         $stmt->bindValue(':name', $name, SQLITE3_TEXT);
