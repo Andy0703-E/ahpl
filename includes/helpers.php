@@ -59,9 +59,6 @@ function getServerInfo() {
     $info = [];
     
     $info['php_version'] = phpversion();
-    $info['uptime'] = 'N/A';
-    $info['battery'] = 'N/A';
-    $info['temperature'] = 'N/A';
     $info['mem_total'] = 0;
     $info['mem_used'] = 0;
     $info['mem_free'] = 0;
@@ -78,21 +75,6 @@ function getServerInfo() {
         $info['mem_free'] = ($m[1] ?? 0) * 1024;
         $info['mem_used'] = $info['mem_total'] - $info['mem_free'];
     }
-    
-    $up = @file_get_contents('/proc/uptime');
-    if ($up) {
-        $sec = (float)explode(' ', $up)[0];
-        $d = floor($sec / 86400);
-        $h = floor(($sec % 86400) / 3600);
-        $m = floor(($sec % 3600) / 60);
-        $info['uptime'] = "{$d}d {$h}h {$m}m";
-    }
-    
-    $bat = @file_get_contents('/sys/class/power_supply/battery/capacity');
-    if ($bat !== false) $info['battery'] = trim($bat) . '%';
-    
-    $temp = @file_get_contents('/sys/class/thermal/thermal_zone0/temp');
-    if ($temp !== false) $info['temperature'] = round((int)trim($temp) / 1000, 1) . '°C';
     
     return $info;
 }

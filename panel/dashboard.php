@@ -42,20 +42,7 @@ $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_t
             <p><?= formatSize($server['disk_total']) ?> Storage</p>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon cyan"><i class="fas fa-clock"></i></div>
-        <div class="stat-info">
-            <h4><?= $server['uptime'] ?></h4>
-            <p>Uptime</p>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon red"><i class="fas fa-battery-three-quarters"></i></div>
-        <div class="stat-info">
-            <h4><?= $server['battery'] ?></h4>
-            <p>Battery</p>
-        </div>
-    </div>
+
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
@@ -76,7 +63,7 @@ $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_t
                         <div class="progress-bar" style="margin-top:5px;"><div class="progress-fill" style="width:<?= $memPct ?>%;background:<?= $memPct > 80 ? 'var(--danger)' : 'var(--success)' ?>"></div></div>
                     </td>
                 </tr>
-                <tr><td>Temperature</td><td><?= $server['temperature'] ?></td></tr>
+
             </table>
         </div>
     </div>
