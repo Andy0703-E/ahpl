@@ -61,7 +61,10 @@ if (!isPathSafe($fullDir, $baseDir)) {
                 ];
             }
         }
-        usort($items, fn($a, $b) => $a['is_dir'] != $b['is_dir'] ? !$a['is_dir'] : strcasecmp($a['name'], $b['name']));
+        usort($items, function($a, $b) {
+    if ($a['is_dir'] !== $b['is_dir']) return $a['is_dir'] ? -1 : 1;
+    return strcasecmp($a['name'], $b['name']);
+});
         ?>
 
         <?php if (empty($items)): ?>

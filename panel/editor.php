@@ -95,4 +95,5 @@ async function saveFile() {
 }
 </script>
 
+<?php endif; ?>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

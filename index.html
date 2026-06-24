@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kopi Nol — Specialty Coffee</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    ::selection { background: rgba(255,255,255,0.2); color: white; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #050505; }
+    ::-webkit-scrollbar-thumb { background: #262626; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #404040; }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+      opacity: 0;
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+    .delay-100 { animation-delay: 0.1s; }
+    .delay-200 { animation-delay: 0.2s; }
+    .delay-300 { animation-delay: 0.3s; }
+    .delay-400 { animation-delay: 0.4s; }
+    .delay-500 { animation-delay: 0.5s; }
+    .delay-600 { animation-delay: 0.6s; }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+      50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); }
+    }
+    .animate-bounce-custom { animation: bounce 1.5s infinite; }
+
+    .scroll-reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s ease-out;
+    }
+    .scroll-reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-[#050505] text-white antialiased">
+
+  <!-- ==================== NAVBAR ==================== -->
+  <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 mix-blend-difference transition-all duration-300">
+    <div class="flex items-center justify-between px-6 py-6 md:px-12 md:py-8">
+      <a href="#hero" class="text-sm font-medium tracking-[0.1em] uppercase">Kopi Nol</a>
+
+      <!-- Desktop Menu -->
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#tentang" class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-400 hover:text-white transition-colors duration-150">Tentang</a>
+        <a href="#menu" class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-400 hover:text-white transition-colors duration-150">Menu</a>
+        <a href="#galeri" class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-400 hover:text-white transition-colors duration-150">Galeri</a>
+        <a href="#kontak" class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-400 hover:text-white transition-colors duration-150">Kontak</a>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <button id="menuBtn" class="md:hidden flex flex-col gap-1.5 group" aria-label="Menu">
+        <span class="block w-6 h-[1px] bg-white transition-all duration-300 origin-center" id="line1"></span>
+        <span class="block w-6 h-[1px] bg-white transition-all duration-300" id="line2"></span>
+        <span class="block w-4 h-[1px] bg-white transition-all duration-300 origin-center group-hover:w-6" id="line3"></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Menu Overlay -->
+  <div id="mobileMenu" class="fixed inset-0 z-40 bg-[#050505] flex flex-col items-center justify-center gap-8 opacity-0 pointer-events-none transition-opacity duration-300">
+    <a href="#tentang" class="mobile-link text-2xl font-medium tracking-[-0.025em] text-neutral-400 hover:text-white transition-colors duration-150">Tentang</a>
+    <a href="#menu" class="mobile-link text-2xl font-medium tracking-[-0.025em] text-neutral-400 hover:text-white transition-colors duration-150">Menu</a>
+    <a href="#galeri" class="mobile-link text-2xl font-medium tracking-[-0.025em] text-neutral-400 hover:text-white transition-colors duration-150">Galeri</a>
+    <a href="#kontak" class="mobile-link text-2xl font-medium tracking-[-0.025em] text-neutral-400 hover:text-white transition-colors duration-150">Kontak</a>
+  </div>
+
+  <!-- ==================== HERO ==================== -->
+  <section id="hero" class="relative h-screen flex items-center justify-center overflow-hidden">
+    <img src="https://picsum.photos/seed/coffeeshop-dark/1920/1080.jpg" alt="Coffee" class="absolute inset-0 w-full h-full object-cover opacity-50 grayscale contrast-125 scale-105">
+    <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent"></div>
+    <div class="relative z-10 text-center px-6 max-w-4xl mx-auto">
+      <p class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-400 mb-6 animate-fade-in-up">Specialty Coffee House</p>
+      <h1 class="text-5xl md:text-7xl lg:text-[128px] font-medium leading-[0.9] tracking-[-0.05em] animate-fade-in-up delay-100">
+        Kopi<br>Nol
+      </h1>
+      <p class="mt-6 md:mt-8 text-sm md:text-base font-light leading-relaxed text-neutral-400 max-w-md mx-auto animate-fade-in-up delay-200">
+        Setiap cangkir dimulai dari nol — biji pilihan, metode tepat, dan ketelitian tanpa kompromi.
+      </p>
+      <a href="#menu" class="inline-block mt-8 md:mt-10 px-8 py-4 bg-white text-black text-xs font-medium tracking-[0.2em] uppercase rounded-sm hover:bg-neutral-200 transition-colors duration-150 animate-fade-in-up delay-300">
+        Lihat Menu
+      </a>
+    </div>
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 animate-bounce-custom">
+      <span class="iconify w-5 h-5 text-neutral-500" data-icon="lucide:chevron-down" data-width="20" data-height="20"></span>
+    </div>
+  </section>
+
+  <!-- ==================== TENTANG ==================== -->
+  <section id="tentang" class="py-24 md:py-32 px-6 md:px-12">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <!-- Image -->
+      <div class="scroll-reveal overflow-hidden rounded-sm">
+        <img src="https://picsum.photos/seed/barista-pour/800/1000.jpg" alt="Barista" class="w-full h-[400px] md:h-[600px] object-cover grayscale opacity-80 hover:grayscale-0 hover:opacity-100 hover:scale-105 transition-all duration-700">
+      </div>
+      <!-- Text -->
+      <div class="scroll-reveal">
+        <p class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-500 mb-4">Tentang Kami</p>
+        <h2 class="text-3xl md:text-4xl font-medium tracking-[-0.025em] leading-tight mb-6">
+          Dari biji<br>ke cangkir Anda
+        </h2>
+        <p class="text-sm md:text-base font-light leading-relaxed text-neutral-400 mb-6">
+          Kami bekerja langsung dengan petani kopi di berbagai daerah untuk memastikan setiap biji yang kami gunakan memiliki cerita dan kualitas terbaik. Proses roasting dilakukan secara mikro untuk menjaga kesegaran dan karakter rasa unik setiap origin.
+        </p>
+        <p class="text-sm md:text-base font-light leading-relaxed text-neutral-400 mb-10">
+          Nama "Nol" bukan berarti tidak ada — melainkan titik awal. Setiap hari kami kembali ke nol: membersihkan mesin, mengukur dengan presisi, dan menyajikan kopi seolah ini cangkir pertama kami.
+        </p>
+        <div class="grid grid-cols-3 gap-6">
+          <div>
+            <p class="text-2xl md:text-3xl font-medium tracking-tight">12+</p>
+            <p class="text-xs text-neutral-500 mt-1 tracking-[0.1em] uppercase">Origin</p>
+          </div>
+          <div>
+            <p class="text-2xl md:text-3xl font-medium tracking-tight">5</p>
+            <p class="text-xs text-neutral-500 mt-1 tracking-[0.1em] uppercase">Metode</p>
+          </div>
+          <div>
+            <p class="text-2xl md:text-3xl font-medium tracking-tight">3K+</p>
+            <p class="text-xs text-neutral-500 mt-1 tracking-[0.1em] uppercase">Cangkir/bulan</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== MENU ==================== -->
+  <section id="menu" class="py-24 md:py-32 px-6 md:px-12 border-t border-neutral-900">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-16 scroll-reveal">
+        <p class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-500 mb-4">Menu Kami</p>
+        <h2 class="text-3xl md:text-4xl font-medium tracking-[-0.025em]">Pilihan Kopi</h2>
+      </div>
+
+      <!-- Menu Tabs -->
+      <div class="flex justify-center gap-2 mb-12 scroll-reveal">
+        <button class="menu-tab active-tab px-5 py-2 text-xs font-medium tracking-[0.15em] uppercase rounded-sm transition-all duration-300 bg-white text-black" data-tab="espresso">Espresso</button>
+        <button class="menu-tab px-5 py-2 text-xs font-medium tracking-[0.15em] uppercase rounded-sm transition-all duration-300 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600" data-tab="manual">Manual Brew</button>
+        <button class="menu-tab px-5 py-2 text-xs font-medium tracking-[0.15em] uppercase rounded-sm transition-all duration-300 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600" data-tab="nonkopi">Non-Kopi</button>
+      </div>
+
+      <!-- Menu Items: Espresso -->
+      <div id="tab-espresso" class="menu-content grid grid-cols-1 md:grid-cols-2 gap-0">
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Espresso</h3>
+            <p class="text-xs text-neutral-500 mt-1">Single or double shot</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">25K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Americano</h3>
+            <p class="text-xs text-neutral-500 mt-1">Espresso + hot water</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">28K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Cappuccino</h3>
+            <p class="text-xs text-neutral-500 mt-1">Espresso + steamed milk + foam</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">35K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Flat White</h3>
+            <p class="text-xs text-neutral-500 mt-1">Double shot + velvety milk</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">38K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Piccolo Latte</h3>
+            <p class="text-xs text-neutral-500 mt-1">Small latte, big flavor</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">32K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Affogato</h3>
+            <p class="text-xs text-neutral-500 mt-1">Espresso over vanilla gelato</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">42K</p>
+        </div>
+      </div>
+
+      <!-- Menu Items: Manual Brew -->
+      <div id="tab-manual" class="menu-content hidden grid grid-cols-1 md:grid-cols-2 gap-0">
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">V60</h3>
+            <p class="text-xs text-neutral-500 mt-1">Clean, bright, aromatic</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">38K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">AeroPress</h3>
+            <p class="text-xs text-neutral-500 mt-1">Full body, smooth finish</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">38K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">French Press</h3>
+            <p class="text-xs text-neutral-500 mt-1">Rich, bold, heavy body</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">35K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Cold Drip</h3>
+            <p class="text-xs text-neutral-500 mt-1">12-hour slow extraction</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">45K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Espresso Tonic</h3>
+            <p class="text-xs text-neutral-500 mt-1">Espresso + premium tonic</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">40K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Kopinya</h3>
+            <p class="text-xs text-neutral-500 mt-1">Tanyakan kopi hari ini</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">35K</p>
+        </div>
+      </div>
+
+      <!-- Menu Items: Non-Kopi -->
+      <div id="tab-nonkopi" class="menu-content hidden grid grid-cols-1 md:grid-cols-2 gap-0">
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Matcha Latte</h3>
+            <p class="text-xs text-neutral-500 mt-1">Ceremonial grade Uji</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">40K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Chocolate</h3>
+            <p class="text-xs text-neutral-500 mt-1">Single origin cacao</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">38K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Lemonade</h3>
+            <p class="text-xs text-neutral-500 mt-1">Fresh squeezed, lightly sweet</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">30K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Teh Tarik</h3>
+            <p class="text-xs text-neutral-500 mt-1">Classic pulled tea</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">28K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Mineral Water</h3>
+            <p class="text-xs text-neutral-500 mt-1">Sourced spring water</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">12K</p>
+        </div>
+        <div class="scroll-reveal group flex justify-between items-baseline py-6 border-b border-neutral-900 hover:border-neutral-500 transition-colors duration-150 px-2">
+          <div>
+            <h3 class="text-sm md:text-base font-medium">Fresh Juice</h3>
+            <p class="text-xs text-neutral-500 mt-1">Orange / Watermelon / Lime</p>
+          </div>
+          <p class="text-sm text-neutral-400 group-hover:text-white transition-colors duration-150">32K</p>
+        </div>
+      </div>
+
+      <p class="text-center text-xs text-neutral-600 mt-10 scroll-reveal">* Harga dapat berubah sewaktu-waktu. Tanya barista untuk rekomendasi.</p>
+    </div>
+  </section>
+
+  <!-- ==================== FEATURES ==================== -->
+  <section class="py-24 md:py-32 px-6 md:px-12 border-t border-neutral-900">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="scroll-reveal group p-8 border border-neutral-900 rounded-sm hover:border-neutral-500 transition-all duration-500">
+        <span class="iconify w-6 h-6 text-neutral-500 group-hover:text-white transition-colors duration-150 mb-6 block" data-icon="lucide:bean" data-width="24" data-height="24"></span>
+        <h3 class="text-sm font-medium mb-3">Biji Pilihan</h3>
+        <p class="text-sm font-light leading-relaxed text-neutral-400">Direct trade dari petani lokal dan internasional. Setiap biji dipilih berdasarkan cupping score minimal 82.</p>
+      </div>
+      <div class="scroll-reveal group p-8 border border-neutral-900 rounded-sm hover:border-neutral-500 transition-all duration-500">
+        <span class="iconify w-6 h-6 text-neutral-500 group-hover:text-white transition-colors duration-150 mb-6 block" data-icon="lucide:flame" data-width="24" data-height="24"></span>
+        <h3 class="text-sm font-medium mb-3">Mikro Roasting</h3>
+        <p class="text-sm font-light leading-relaxed text-neutral-400">Diroasting dalam batch kecil setiap minggu untuk memastikan kesegaran dan karakter rasa yang optimal.</p>
+      </div>
+      <div class="scroll-reveal group p-8 border border-neutral-900 rounded-sm hover:border-neutral-500 transition-all duration-500">
+        <span class="iconify w-6 h-6 text-neutral-500 group-hover:text-white transition-colors duration-150 mb-6 block" data-icon="lucide:heart-handshake" data-width="24" data-height="24"></span>
+        <h3 class="text-sm font-medium mb-3">Komunitas</h3>
+        <p class="text-sm font-light leading-relaxed text-neutral-400">Ruang untuk bertemu, berdiskusi, atau sekadar menikmati ketenangan. Kopi Nol adalah milik bersama.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== GALERI ==================== -->
+  <section id="galeri" class="py-24 md:py-32 px-6 md:px-12 border-t border-neutral-900">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-16 scroll-reveal">
+        <p class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-500 mb-4">Galeri</p>
+        <h2 class="text-3xl md:text-4xl font-medium tracking-[-0.025em]">@kopinol</h2>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-1">
+        <div class="scroll-reveal aspect-square overflow-hidden">
+          <img src="https://picsum.photos/seed/cafe-latte-art/600/600.jpg" alt="Gallery" class="w-full h-full object-cover grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105 transition-all duration-700">
+        </div>
+        <div class="scroll-reveal aspect-square overflow-hidden">
+          <img src="https://picsum.photos/seed/coffee-beans-bag/600/600.jpg" alt="Gallery" class="w-full h-full object-cover grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105 transition-all duration-700">
+        </div>
+        <div class="scroll-reveal aspect-square overflow-hidden">
+          <img src="https://picsum.photos/seed/coffee-interior-minimal/600/600.jpg" alt="Gallery" class="w-full h-full object-cover grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105 transition-all duration-700">
+        </div>
+        <div class="scroll-reveal aspect-square overflow-hidden">
+          <img src="https://picsum.photos/seed/pour-over-drip/600/600.jpg" alt="Gallery" class="w-full h-full object-cover grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105 transition-all duration-700">
+        </div>
+      </div>
+
+      <div class="text-center mt-10 scroll-reveal">
+        <a href="#" class="inline-flex items-center gap-2 text-xs font-medium tracking-[0.2em] uppercase text-neutral-400 hover:text-white transition-colors duration-150">
+          <span class="iconify" data-icon="lucide:instagram" data-width="16" data-height="16"></span>
+          Ikuti di Instagram
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TESTIMONI ==================== -->
+  <section class="py-24 md:py-32 px-6 md:px-12 border-t border-neutral-900">
+    <div class="max-w-3xl mx-auto text-center scroll-reveal">
+      <span class="iconify w-8 h-8 text-neutral-700 mx-auto mb-8 block" data-icon="lucide:quote" data-width="32" data-height="32"></span>
+      <blockquote class="text-xl md:text-2xl font-light leading-relaxed tracking-[-0.025em] text-neutral-300 mb-8">
+        "Tempat yang tepat untuk memulai hari. Kopi mereka selalu konsisten, dan suasananya membuat saya betah berjam-jam bekerja di sini."
+      </blockquote>
+      <p class="text-sm font-medium">Rina Aulia</p>
+      <p class="text-xs text-neutral-500 mt-1">Desainer — Reguler sejak 2023</p>
+    </div>
+  </section>
+
+  <!-- ==================== KONTAK ==================== -->
+  <section id="kontak" class="py-24 md:py-32 px-6 md:px-12 border-t border-neutral-900">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16">
+      <!-- Info -->
+      <div class="scroll-reveal">
+        <p class="text-xs font-medium tracking-[0.2em] uppercase text-neutral-500 mb-4">Kunjungi Kami</p>
+        <h2 class="text-3xl md:text-4xl font-medium tracking-[-0.025em] mb-10">Kontak & Lokasi</h2>
+
+        <div class="space-y-8">
+          <div>
+            <p class="text-xs font-medium tracking-[0.15em] uppercase text-neutral-500 mb-2">Alamat</p>
+            <p class="text-sm font-light leading-relaxed text-neutral-400">Jl. Senopati No. 12<br>Kebayoran Baru, Jakarta Selatan 12190</p>
+          </div>
+          <div>
+            <p class="text-xs font-medium tracking-[0.15em] uppercase text-neutral-500 mb-2">Jam Buka</p>
+            <p class="text-sm font-light leading-relaxed text-neutral-400">
+              Senin — Jumat&emsp;07:00 — 22:00<br>
+              Sabtu — Minggu&emsp;08:00 — 23:00
+            </p>
+          </div>
+          <div>
+            <p class="text-xs font-medium tracking-[0.15em] uppercase text-neutral-500 mb-2">Kontak</p>
+            <p class="text-sm font-light text-neutral-400">hello@kopinol.id</p>
+            <p class="text-sm font-light text-neutral-400">+62 812 3456 7890</p>
+          </div>
+          <div class="flex gap-4 pt-2">
+            <a href="#" class="w-10 h-10 rounded-full border border-neutral-800 flex items-center justify-center text-neutral-500 hover:text-white hover:border-neutral-500 transition-all duration-150">
+              <span class="iconify" data-icon="lucide:instagram" data-width="16" data-height="16"></span>
+            </a>
+            <a href="#" class="w-10 h-10 rounded-full border border-neutral-800 flex items-center justify-center text-neutral-500 hover:text-white hover:border-neutral-500 transition-all duration-150">
+              <span class="iconify" data-icon="lucide:twitter" data-width="16" data-height="16"></span>
+            </a>
+            <a href="#" class="w-10 h-10 rounded-full border border-neutral-800 flex items-center justify-center text-neutral-500 hover:text-white hover:border-neutral-500 transition-all duration-150">
+              <span class="iconify" data-icon="lucide:map-pin" data-width="16" data-height="16"></span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Placeholder -->
+      <div class="scroll-reveal overflow-hidden rounded-sm border border-neutral-900">
+        <div class="w-full h-full min-h-[400px] bg-neutral-900/30 flex items-center justify-center relative">
+          <img src="https://picsum.photos/seed/dark-city-map/800/600.jpg" alt="Map" class="absolute inset-0 w-full h-full object-cover opacity-20 grayscale">
+          <div class="relative text-center">
+            <span class="iconify w-8 h-8 text-neutral-600 mx-auto mb-3 block" data-icon="lucide:map-pin" data-width="32" data-height="32"></span>
+            <p class="text-xs text-neutral-500 tracking-[0.1em] uppercase">Buka di Google Maps</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CTA ==================== -->
+  <section class="py-24 md:py-32 px-6 md:px-12 border-t border-neutral-900">
+    <div class="max-w-4xl mx-auto text-center scroll-reveal">
+      <h2 class="text-3xl md:text-5xl font-medium tracking-[-0.025em] leading-tight mb-6">
+        Mulai hari Anda<br>dengan kopi yang tepat
+      </h2>
+      <p class="text-sm md:text-base font-light text-neutral-400 max-w-md mx-auto mb-10">
+        Datang saja, duduk, dan biarkan kami meracik secangkir yang cocok untuk Anda.
+      </p>
+      <a href="#kontak" class="inline-block px-8 py-4 bg-white text-black text-xs font-medium tracking-[0.2em] uppercase rounded-sm hover:bg-neutral-200 transition-colors duration-150">
+        Temukan Lokasi
+      </a>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="border-t border-neutral-900 px-6 md:px-12 py-12">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+        <a href="#hero" class="text-sm font-medium tracking-[0.1em] uppercase">Kopi Nol</a>
+        <p class="text-xs text-neutral-600">© 2025 Kopi Nol. Hak cipta dilindungi.</p>
+      </div>
+      <div class="flex items-center gap-6">
+        <a href="#tentang" class="text-xs text-neutral-500 hover:text-white transition-colors duration-150">Tentang</a>
+        <a href="#menu" class="text-xs text-neutral-500 hover:text-white transition-colors duration-150">Menu</a>
+        <a href="#galeri" class="text-xs text-neutral-500 hover:text-white transition-colors duration-150">Galeri</a>
+        <a href="#kontak" class="text-xs text-neutral-500 hover:text-white transition-colors duration-150">Kontak</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== TOAST ==================== -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 bg-white text-black px-6 py-3 rounded-sm text-xs font-medium tracking-[0.1em] uppercase opacity-0 pointer-events-none transition-all duration-300 translate-y-4">
+    Pesan terkirim
+  </div>
+
+  <script>
+    // ===== Mobile Menu Toggle =====
+    const menuBtn = document.getElementById('menuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    const line1 = document.getElementById('line1');
+    const line2 = document.getElementById('line2');
+    const line3 = document.getElementById('line3');
+    let menuOpen = false;
+
+    menuBtn.addEventListener('click', () => {
+      menuOpen = !menuOpen;
+      if (menuOpen) {
+        mobileMenu.classList.remove('opacity-0', 'pointer-events-none');
+        mobileMenu.classList.add('opacity-100', 'pointer-events-auto');
+        line1.style.transform = 'rotate(45deg) translateY(4px)';
+        line2.style.opacity = '0';
+        line3.style.transform = 'rotate(-45deg) translateY(-4px)';
+        line3.style.width = '24px';
+      } else {
+        closeMobileMenu();
+      }
+    });
+
+    function closeMobileMenu() {
+      menuOpen = false;
+      mobileMenu.classList.add('opacity-0', 'pointer-events-none');
+      mobileMenu.classList.remove('opacity-100', 'pointer-events-auto');
+      line1.style.transform = '';
+      line2.style.opacity = '1';
+      line3.style.transform = '';
+      line3.style.width = '';
+    }
+
+    document.querySelectorAll('.mobile-link').forEach(link => {
+      link.addEventListener('click', closeMobileMenu);
+    });
+
+    // ===== Menu Tabs =====
+    const tabs = document.querySelectorAll('.menu-tab');
+    const contents = document.querySelectorAll('.menu-content');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Reset all tabs
+        tabs.forEach(t => {
+          t.classList.remove('bg-white', 'text-black', 'active-tab');
+          t.classList.add('border', 'border-neutral-800', 'text-neutral-400');
+        });
+        // Activate clicked tab
+        tab.classList.add('bg-white', 'text-black', 'active-tab');
+        tab.classList.remove('border', 'border-neutral-800', 'text-neutral-400');
+
+        // Show corresponding content
+        const target = tab.dataset.tab;
+        contents.forEach(c => c.classList.add('hidden'));
+        document.getElementById('tab-' + target).classList.remove('hidden');
+
+        // Re-trigger scroll reveal for new items
+        setTimeout(() => {
+          document.querySelectorAll('#tab-' + target + ' .scroll-reveal').forEach(el => {
+            el.classList.add('visible');
+          });
+        }, 50);
+      });
+    });
+
+    // ===== Scroll Reveal =====
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, index) => {
+        if (entry.isIntersecting) {
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, index * 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.scroll-reveal').forEach(el => {
+      observer.observe(el);
+    });
+
+    // ===== Navbar scroll effect =====
+    let lastScroll = 0;
+    const navbar = document.getElementById('navbar');
+
+    window.addEventListener('scroll', () => {
+      const currentScroll = window.pageYOffset;
+      if (currentScroll > 100) {
+        navbar.style.padding = '0';
+      } else {
+        navbar.style.padding = '';
+      }
+      lastScroll = currentScroll;
+    });
+  </script>
+</body>
+</html>
