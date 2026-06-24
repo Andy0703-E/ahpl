@@ -68,42 +68,51 @@ EOF
 
 # === SETUP NGINX ===
 echo "Setup Nginx..."
-mkdir -p "$PREFIX/etc/nginx/conf.d"
-
-# Pastikan include conf.d ada di nginx.conf utama
 MAIN_NGINX="$PREFIX/etc/nginx/nginx.conf"
-if [ -f "$MAIN_NGINX" ]; then
-    if ! grep -q "conf.d/\*.conf" "$MAIN_NGINX" 2>/dev/null; then
-        echo "include $PREFIX/etc/nginx/conf.d/*.conf;" >> "$MAIN_NGINX"
-    fi
-fi
 
-NGINX_CONF="$PREFIX/etc/nginx/conf.d/ahpl.conf"
-cat > "$NGINX_CONF" << 'EOF'
-server {
-    listen 8080;
-    server_name localhost;
-    root __AHPL_HOME__/panel;
-    index index.php index.html;
-    client_max_body_size 100M;
+# Backup config asli
+cp "$MAIN_NGINX" "$MAIN_NGINX.bak" 2>/dev/null || true
 
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
+# Buat config baru lengkap
+cat > "$MAIN_NGINX" << NGINX_EOF
+worker_processes 1;
+error_log $PREFIX/var/log/nginx/error.log;
+pid $PREFIX/var/log/nginx/nginx.pid;
+daemon off;
 
-    location ~ \.php$ {
-        include fastcgi_params;
-        fastcgi_pass 127.0.0.1:9000;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    }
-
-    location ~ /\. { deny all; }
-    location ~* \.(db|sqlite|log)$ { deny all; }
+events {
+    worker_connections 1024;
 }
-EOF
 
-sed "s|__AHPL_HOME__|$AHPL_HOME|g" "$NGINX_CONF" > "$NGINX_CONF.tmp"
-mv "$NGINX_CONF.tmp" "$NGINX_CONF"
+http {
+    include $PREFIX/etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    sendfile on;
+    keepalive_timeout 65;
+    
+    server {
+        listen 8080;
+        server_name localhost;
+        root $AHPL_HOME/panel;
+        index index.php index.html;
+        client_max_body_size 100M;
+
+        location / {
+            try_files \$uri \$uri/ /index.php?\$query_string;
+        }
+
+        location ~ \.php\$ {
+            include fastcgi_params;
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        }
+
+        location ~ /\. { deny all; }
+        location ~* \.(db|sqlite|log)\$ { deny all; }
+    }
+}
+NGINX_EOF
 
 # === SETUP PHP-FPM ===
 PHP_FPM_CONF="$PREFIX/etc/php-fpm.d/www.conf"
