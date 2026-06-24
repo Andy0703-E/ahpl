@@ -31,7 +31,7 @@ $payload = json_encode([
         ['role' => 'system', 'content' => $systemPrompt],
         ['role' => 'user', 'content' => $prompt]
     ],
-    'max_tokens' => 4096,
+    'max_tokens' => 8192,
     'temperature' => 0.7,
 ]);
 
