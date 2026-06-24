@@ -37,9 +37,9 @@ function logout() {
 }
 
 function jsonResponse($data, $code = 200) {
-    ob_clean();
     http_response_code($code);
     header('Content-Type: application/json');
+    while (ob_get_level()) ob_end_clean();
     echo json_encode($data);
     exit;
 }
