@@ -27,6 +27,7 @@ $hasKey = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = 'cerebras_
                         <td><code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:12px;"><?= sanitize($site['folder']) ?></code></td>
                         <td><?= date('d M Y', strtotime($site['created_at'])) ?></td>
                         <td>
+                            <a href="/websites/<?= urlencode($site['folder']) ?>/" target="_blank" class="btn btn-sm btn-outline"><i class="fas fa-external-link-alt"></i></a>
                             <a href="/panel/files.php?dir=<?= urlencode($site['folder']) ?>" class="btn btn-sm btn-outline"><i class="fas fa-folder"></i></a>
                             <button class="btn btn-sm btn-danger" onclick="deleteWebsite(<?= $site['id'] ?>, '<?= sanitize($site['name']) ?>')"><i class="fas fa-trash"></i></button>
                         </td>
