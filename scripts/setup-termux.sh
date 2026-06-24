@@ -94,7 +94,7 @@ http {
     server {
         listen 8080;
         server_name localhost;
-        root $AHPL_HOME/panel;
+        root $AHPL_HOME;
         index index.php index.html;
         client_max_body_size 100M;
 
