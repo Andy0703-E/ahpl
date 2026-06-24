@@ -46,6 +46,7 @@ echo "Menyalin file..."
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cp -r "$DIR"/../panel/* "$AHPL_HOME"/panel/
 cp -r "$DIR"/../config "$AHPL_HOME"/
+cp -r "$DIR"/../includes "$AHPL_HOME"/
 cp "$DIR"/../index.php "$AHPL_HOME"/
 
 # === CREATE LOCAL CONFIG FOR TERMUX ===
