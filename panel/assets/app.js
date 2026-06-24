@@ -12,8 +12,13 @@ const AHPL = {
             headers: { 'Content-Type': 'application/json', ...opts.headers },
             ...opts
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error');
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            throw new Error('Server error (HTTP ' + res.status + ')');
+        }
+        if (!res.ok) throw new Error(data.error || 'Error (HTTP ' + res.status + ')');
         return data;
     },
 

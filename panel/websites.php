@@ -105,6 +105,7 @@ async function createWebsite() {
         } catch (e) {
             document.getElementById('createBtn').disabled = false;
             document.getElementById('aiStatus').style.display = 'none';
+            AHPL.toast(e.message || 'AI gagal generate', 'error');
             return;
         }
         document.getElementById('aiStatus').style.display = 'none';
