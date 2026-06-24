@@ -68,6 +68,16 @@ EOF
 
 # === SETUP NGINX ===
 echo "Setup Nginx..."
+mkdir -p "$PREFIX/etc/nginx/conf.d"
+
+# Pastikan include conf.d ada di nginx.conf utama
+MAIN_NGINX="$PREFIX/etc/nginx/nginx.conf"
+if [ -f "$MAIN_NGINX" ]; then
+    if ! grep -q "conf.d/\*.conf" "$MAIN_NGINX" 2>/dev/null; then
+        echo "include $PREFIX/etc/nginx/conf.d/*.conf;" >> "$MAIN_NGINX"
+    fi
+fi
+
 NGINX_CONF="$PREFIX/etc/nginx/conf.d/ahpl.conf"
 cat > "$NGINX_CONF" << 'EOF'
 server {
