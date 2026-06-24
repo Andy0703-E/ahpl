@@ -7,10 +7,10 @@ header('Content-Type: application/json');
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 
 $db = getDB();
-$apiKey = $db->querySingle("SELECT value FROM settings WHERE key = 'glm_key'");
+$apiKey = $db->querySingle("SELECT value FROM settings WHERE key = 'cerebras_key'");
 $db->close();
 
-if (!$apiKey) jsonResponse(['error' => 'API Key GLM-4 belum diatur. Masukkan di Settings > API Key'], 400);
+if (!$apiKey) jsonResponse(['error' => 'API Key Cerebras belum diatur. Masukkan di Settings > API Key'], 400);
 
 $input = json_decode(file_get_contents('php://input'), true);
 $prompt = trim($input['prompt'] ?? '');
@@ -28,13 +28,13 @@ $messages = [
 ];
 
 $payload = json_encode([
-    'model' => 'glm-4-plus',
+    'model' => 'zai-glm-47',
     'messages' => $messages,
     'max_tokens' => 4096,
     'temperature' => 0.7,
 ]);
 
-$ch = curl_init('https://open.bigmodel.cn/api/paas/v4/chat/completions');
+$ch = curl_init('https://api.cerebras.ai/v1/chat/completions');
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
@@ -52,7 +52,7 @@ $error = curl_error($ch);
 curl_close($ch);
 
 if ($error) jsonResponse(['error' => 'Curl error: ' . $error], 500);
-if ($httpCode !== 200) jsonResponse(['error' => 'API error: HTTP ' . $httpCode], 500);
+if ($httpCode !== 200) jsonResponse(['error' => 'API error: HTTP ' . $httpCode . ' - ' . substr($response, 0, 500)], 500);
 
 $data = json_decode($response, true);
 $html = $data['choices'][0]['message']['content'] ?? '';

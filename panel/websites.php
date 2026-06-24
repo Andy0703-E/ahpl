@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/header.php';
 
 $db = getDB();
 $websites = $db->query("SELECT * FROM websites ORDER BY id DESC");
-$hasKey = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = 'glm_key'");
+$hasKey = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = 'cerebras_key'");
 $db->close();
 ?>
 
@@ -56,7 +56,7 @@ $db->close();
             <div class="form-group" style="border-top:1px solid #eee;padding-top:16px;margin-top:16px;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="checkbox" id="useAI" onchange="toggleAI()">
-                    <i class="fas fa-robot" style="color:var(--primary);"></i> Generate dengan AI (GLM-4)
+                    <i class="fas fa-robot" style="color:var(--primary);"></i> Generate dengan AI (Z-AI GLM-4.7)
                 </label>
             </div>
             <div id="aiSection" style="display:none;">
