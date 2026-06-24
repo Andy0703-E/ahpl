@@ -16,7 +16,7 @@ echo "[2/8] Install Git..."
 pkg install git -y
 
 echo "[3/8] Install PHP + FPM..."
-pkg install php php-fpm php-sqlite3 -y
+pkg install php php-fpm -y
 
 echo "[4/8] Install Nginx..."
 pkg install nginx -y
