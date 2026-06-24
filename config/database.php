@@ -45,8 +45,6 @@ function initDatabase() {
         $hash = password_hash('admin', PASSWORD_DEFAULT);
         $db->exec("INSERT INTO users (username, password) VALUES ('admin', '$hash')");
     }
-    
-    $db->close();
 }
 
 function logAction($action, $details = '') {
@@ -55,5 +53,4 @@ function logAction($action, $details = '') {
     $stmt->bindValue(':action', $action, SQLITE3_TEXT);
     $stmt->bindValue(':details', $details, SQLITE3_TEXT);
     $stmt->execute();
-    $db->close();
 }

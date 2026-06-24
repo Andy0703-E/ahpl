@@ -13,15 +13,12 @@ function requireLogin() {
 function currentUser() {
     if (!isLoggedIn()) return null;
     $db = getDB();
-    $user = $db->querySingle("SELECT * FROM users WHERE id = " . (int)$_SESSION['user_id'], true);
-    $db->close();
-    return $user;
+    return $db->querySingle("SELECT * FROM users WHERE id = " . (int)$_SESSION['user_id'], true);
 }
 
 function login($username, $password) {
     $db = getDB();
     $user = $db->querySingle("SELECT * FROM users WHERE username = '" . SQLite3::escapeString($username) . "'", true);
-    $db->close();
     
     if ($user && password_verify($password, $user['password'])) {
         $_SESSION['user_id'] = $user['id'];

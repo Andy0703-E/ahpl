@@ -10,7 +10,6 @@ $tunnelStatus = @file_get_contents(SERVER_PATH . '/tunnel.status') ?: 'stopped';
 $tunnelDomain = @file_get_contents(SERVER_PATH . '/tunnel.domain') ?: '';
 $fileCount = countFiles(WEBSITES_PATH);
 $recentLogs = $db->query("SELECT * FROM logs ORDER BY id DESC LIMIT 8");
-$db->close();
 
 $diskPct = $server['disk_total'] > 0 ? round(($server['disk_used'] / $server['disk_total']) * 100) : 0;
 $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_total']) * 100) : 0;

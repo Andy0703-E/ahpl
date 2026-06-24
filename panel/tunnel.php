@@ -8,7 +8,6 @@ $pid = @file_get_contents(SERVER_PATH . '/tunnel.pid') ?: '';
 
 $db = getDB();
 $websites = $db->query("SELECT * FROM websites ORDER BY id DESC");
-$db->close();
 ?>
 
 <div class="stats-grid">

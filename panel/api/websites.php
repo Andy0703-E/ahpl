@@ -60,5 +60,4 @@ if ($method === 'DELETE') {
     jsonResponse(['success' => true]);
 }
 
-$db->close();
 jsonResponse(['error' => 'Invalid'], 400);

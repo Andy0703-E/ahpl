@@ -4,7 +4,6 @@ require_once __DIR__ . '/includes/header.php';
 
 $db = getDB();
 $websites = $db->query("SELECT * FROM websites ORDER BY id DESC");
-$db->close();
 ?>
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
