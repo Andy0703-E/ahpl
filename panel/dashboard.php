@@ -6,8 +6,6 @@ $server = getServerInfo();
 
 $db = getDB();
 $websiteCount = $db->querySingle("SELECT COUNT(*) FROM websites");
-$tunnelStatus = @file_get_contents(SERVER_PATH . '/tunnel.status') ?: 'stopped';
-$tunnelDomain = @file_get_contents(SERVER_PATH . '/tunnel.domain') ?: '';
 $fileCount = countFiles(WEBSITES_PATH);
 $recentLogs = $db->query("SELECT * FROM logs ORDER BY id DESC LIMIT 8");
 
@@ -17,10 +15,10 @@ $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_t
 
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon <?= $tunnelStatus === 'running' ? 'green' : 'red' ?>"><i class="fas fa-cloud"></i></div>
+        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
         <div class="stat-info">
-            <h4><?= ucfirst($tunnelStatus) ?></h4>
-            <p>Tunnel Status</p>
+            <h4>Online</h4>
+            <p>Server Status</p>
         </div>
     </div>
     <div class="stat-card">

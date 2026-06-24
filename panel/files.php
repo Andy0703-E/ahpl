@@ -86,8 +86,11 @@ if (!isPathSafe($fullDir, $baseDir)) {
                     <div class="fm-actions">
                         <?php if (!$item['is_dir']): ?>
                             <a href="/panel/api/download.php?path=<?= urlencode($item['path']) ?>" class="btn-icon" title="Download"><i class="fas fa-download"></i></a>
+                            <?php if (in_array($item['ext'], ['html','htm','css','js','php','json','txt'])): ?>
+                                <a href="/panel/editor.php?file=<?= urlencode($item['path']) ?>" class="btn-icon" title="Edit"><i class="fas fa-pen"></i></a>
+                            <?php endif; ?>
                         <?php endif; ?>
-                        <button class="btn-icon" onclick="renameItem('<?= sanitize($item['path']) ?>','<?= sanitize($item['name']) ?>')" title="Rename"><i class="fas fa-pen"></i></button>
+                        <button class="btn-icon" onclick="renameItem('<?= sanitize($item['path']) ?>','<?= sanitize($item['name']) ?>')" title="Rename"><i class="fas fa-i-cursor"></i></button>
                         <button class="btn-icon del" onclick="deleteItem('<?= sanitize($item['path']) ?>','<?= sanitize($item['name']) ?>')" title="Delete"><i class="fas fa-trash"></i></button>
                     </div>
                 </li>

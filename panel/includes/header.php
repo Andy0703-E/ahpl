@@ -27,8 +27,6 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
                 <li><a href="/panel/websites.php" class="<?= $currentPage === 'websites' ? 'active' : '' ?>"><i class="fas fa-globe"></i> Websites</a></li>
                 <li><a href="/panel/files.php" class="<?= $currentPage === 'files' ? 'active' : '' ?>"><i class="fas fa-folder"></i> File Manager</a></li>
                 <li><a href="/panel/editor.php" class="<?= $currentPage === 'editor' ? 'active' : '' ?>"><i class="fas fa-code"></i> Code Editor</a></li>
-                <li><a href="/panel/tunnel.php" class="<?= $currentPage === 'tunnel' ? 'active' : '' ?>"><i class="fas fa-cloud"></i> Tunnel</a></li>
-                <li><a href="/panel/backup.php" class="<?= $currentPage === 'backup' ? 'active' : '' ?>"><i class="fas fa-download"></i> Backup</a></li>
                 <div class="divider"></div>
                 <li><a href="/panel/api/auth.php?action=logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             </ul>
