@@ -60,9 +60,12 @@ if ($httpCode !== 200) {
 }
 
 $data = json_decode($response, true);
-$html = $data['choices'][0]['message']['content'] ?? '';
+if (!$data || !isset($data['choices'][0]['message']['content'])) {
+    $debug = substr($response, 0, 300);
+    jsonResponse(['error' => 'AI gagal generate konten. Response: ' . $debug], 500);
+}
 
-if (empty($html)) jsonResponse(['error' => 'AI gagal generate konten'], 500);
+$html = $data['choices'][0]['message']['content'];
 
 $html = preg_replace('/^```html?\s*/i', '', $html);
 $html = preg_replace('/```\s*$/', '', $html);
