@@ -14,11 +14,11 @@ if ($action === 'save_key') {
     if (empty($key)) jsonResponse(['error' => 'Key wajib diisi'], 400);
     
     $db = getDB();
-    $existing = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = 'cerebras_key'");
+    $existing = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = 'glm_key'");
     if ($existing) {
-        $db->exec("UPDATE settings SET value = '" . SQLite3::escapeString($key) . "' WHERE key = 'cerebras_key'");
+        $db->exec("UPDATE settings SET value = '" . SQLite3::escapeString($key) . "' WHERE key = 'glm_key'");
     } else {
-        $db->exec("INSERT INTO settings (key, value) VALUES ('cerebras_key', '" . SQLite3::escapeString($key) . "')");
+        $db->exec("INSERT INTO settings (key, value) VALUES ('glm_key', '" . SQLite3::escapeString($key) . "')");
     }
     jsonResponse(['success' => true]);
 }
