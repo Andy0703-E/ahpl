@@ -2,14 +2,17 @@
 # AHPL Boot Script - Termux:Boot
 # Letakkan di: ~/.termux/boot/
 
-# Start PHP-FPM
-php-fpm
+export HOME=/data/data/com.termux/files/home
+AHPL_HOME="$HOME/ahpl-server"
 
-# Start Nginx
+# Start PHP-FPM
+php-fpm -R
+
+# Start Nginx  
 nginx
 
-# Start SSH (opsional, uncomment jika perlu)
+# Start SSH (opsional)
 # sshd
 
-# Start Cloudflare Tunnel (opsional, uncomment jika perlu)
-# cloudflared tunnel --url http://localhost:8080 > /storage/server/logs/tunnel.log 2>&1 &
+# Start Cloudflare Tunnel (opsional)
+# cloudflared tunnel --url http://localhost:8080 > "$AHPL_HOME/logs/tunnel.log" 2>&1 &
