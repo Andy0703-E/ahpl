@@ -26,7 +26,7 @@ if (empty($prompt)) jsonResponse(['error' => 'Deskripsi wajib diisi'], 400);
 $systemPrompt = 'Kamu adalah web developer. Buat satu halaman website HTML lengkap dengan CSS internal (style tag di head) berdasarkan deskripsi berikut. Hasil harus HTML lengkap (bukan markdown, bukan partial). Gunakan desain modern, responsive, dan menarik. Jangan gunakan framework eksternal. Semua CSS inline di style tag. Hanya kirimkan kode HTML, tanpa komentar tambahan.';
 
 $payload = json_encode([
-    'model' => 'zai-glm-47',
+    'model' => 'zai-glm-4.7',
     'messages' => [
         ['role' => 'system', 'content' => $systemPrompt],
         ['role' => 'user', 'content' => $prompt]
