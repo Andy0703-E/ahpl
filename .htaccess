@@ -1,0 +1,20 @@
+RewriteEngine On
+
+RewriteRule ^$ /index.php [L]
+RewriteRule ^admin$ /admin/login.php [L]
+RewriteRule ^admin/(.*)$ /admin/$1 [L]
+RewriteRule ^api/(.*)$ /api/$1 [L]
+
+<FilesMatch "\.(db|sqlite|log|pid|domain)$">
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "\.php$">
+    Order Deny,Allow
+    Allow from all
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>

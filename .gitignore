@@ -1,0 +1,14 @@
+storage/database/*.db
+storage/logs/*
+storage/backups/*
+storage/uploads/*
+!storage/logs/.gitkeep
+!storage/backups/.gitkeep
+!storage/uploads/.gitkeep
+storage/websites/*
+!storage/websites/.gitkeep
+storage/public_html/*
+!storage/public_html/.gitkeep
+*.log
+*.pid
+.env
