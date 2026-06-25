@@ -1,5 +1,14 @@
 <?php
 ob_start();
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        while (ob_get_level()) ob_end_clean();
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'PHP Fatal: ' . $err['message']]);
+    }
+});
 require_once dirname(__DIR__, 2) . '/config/config.php';
 require_once dirname(__DIR__, 2) . '/includes/helpers.php';
 initDatabase();

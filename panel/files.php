@@ -276,7 +276,7 @@ async function deployZipUpload(file) {
         let data;
         try { data = JSON.parse(xhr.responseText); } catch (e) {
             AHPL.toast('Gagal parsing response', 'error');
-            document.getElementById('deployStatus').textContent = 'Error: response invalid';
+            document.getElementById('deployStatus').textContent = 'Error: ' + xhr.responseText.substring(0, 100);
             return;
         }
         if (data.success) {
