@@ -364,6 +364,9 @@ function isProcessRunning($name) {
     if ($name === 'nginx') {
         $conn = @fsockopen('127.0.0.1', 8080, $e, $s, 1);
         if ($conn) { fclose($conn); return true; }
+        $out = @shell_exec("pidof nginx 2>/dev/null");
+        if (!empty(trim($out ?? ''))) return true;
+        return false;
     }
     if ($name === 'php-fpm') {
         $conn = @fsockopen('127.0.0.1', 9000, $e, $s, 1);
@@ -372,16 +375,21 @@ function isProcessRunning($name) {
             '/data/data/com.termux/files/usr/var/run/php-fpm.sock',
             '/var/run/php-fpm.sock',
             '/run/php-fpm.sock',
+            '/dev/shm/php-fpm.sock',
         ];
         foreach ($socks as $s) {
             if (file_exists($s)) return true;
         }
         $pidFile = '/data/data/com.termux/files/usr/var/run/php-fpm.pid';
-        if (file_exists($pidFile) && is_numeric(trim(file_get_contents($pidFile)))) return true;
+        if (file_exists($pidFile) && is_numeric(trim(@file_get_contents($pidFile)))) return true;
+        $out = @shell_exec("pidof php-fpm 2>/dev/null");
+        if (!empty(trim($out ?? ''))) return true;
+        return false;
     }
     if ($name === 'cloudflared') {
         $out = @shell_exec("pidof cloudflared 2>/dev/null || pgrep cloudflared 2>/dev/null");
         if (!empty(trim($out ?? ''))) return true;
+        return false;
     }
     return false;
 }
