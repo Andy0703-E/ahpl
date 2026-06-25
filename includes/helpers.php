@@ -361,14 +361,28 @@ function createBackup($type = 'websites') {
 // --- Service Manager ---
 
 function isProcessRunning($name) {
-    $ports = ['nginx' => 8080, 'php-fpm' => 9000, 'cloudflared' => null];
-    $port = $ports[$name] ?? null;
-    if ($port) {
-        $conn = @fsockopen('127.0.0.1', $port, $e, $s, 1);
+    if ($name === 'nginx') {
+        $conn = @fsockopen('127.0.0.1', 8080, $e, $s, 1);
         if ($conn) { fclose($conn); return true; }
     }
-    $out = @shell_exec("pidof " . escapeshellarg($name) . " 2>/dev/null");
-    if (!empty(trim($out ?? ''))) return true;
+    if ($name === 'php-fpm') {
+        $conn = @fsockopen('127.0.0.1', 9000, $e, $s, 1);
+        if ($conn) { fclose($conn); return true; }
+        $socks = [
+            '/data/data/com.termux/files/usr/var/run/php-fpm.sock',
+            '/var/run/php-fpm.sock',
+            '/run/php-fpm.sock',
+        ];
+        foreach ($socks as $s) {
+            if (file_exists($s)) return true;
+        }
+        $pidFile = '/data/data/com.termux/files/usr/var/run/php-fpm.pid';
+        if (file_exists($pidFile) && is_numeric(trim(file_get_contents($pidFile)))) return true;
+    }
+    if ($name === 'cloudflared') {
+        $out = @shell_exec("pidof cloudflared 2>/dev/null || pgrep cloudflared 2>/dev/null");
+        if (!empty(trim($out ?? ''))) return true;
+    }
     return false;
 }
 
