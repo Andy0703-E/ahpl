@@ -268,7 +268,7 @@ async function deployZipUpload(file) {
     fd.append('file', file);
     fd.append('dir', currentDir);
 
-    prog.innerHTML = '<div style="margin-bottom:8px;"><strong>Uploading ' + AHPL.escapeHtml(file.name) + '</strong><div class="progress-bar"><div class="progress-fill" style="width:0%" id="deployPbar"></div></div><div style="font-size:11px;color:#888;margin-top:2px;" id="deployPct">0%</div></div>';
+    prog.innerHTML = '<div style="margin-bottom:8px;"><strong>' + AHPL.escapeHtml(file.name) + '</strong><div class="progress-bar"><div class="progress-fill" style="width:0%" id="deployPbar"></div></div><div style="font-size:11px;color:#888;margin-top:2px;" id="deployPct">0%</div></div>';
 
     const xhr = new XMLHttpRequest();
     xhr.upload.onprogress = e => {
@@ -278,27 +278,31 @@ async function deployZipUpload(file) {
             document.getElementById('deployPct').textContent = pct + '%';
         }
     };
+
     xhr.onload = function() {
-        try {
-            const data = JSON.parse(xhr.responseText);
-            if (data.success) {
-                // Now deploy the ZIP
-                const zipPath = currentDir + '/' + file.name;
-                fetch('/panel/api/deploy.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-                    body: JSON.stringify({ action: 'website', folder: currentDir.replace(/^\//,''), zipPath: '<?= addslashes(WEBSITES_PATH) ?>/' + currentDir.replace(/^\//,'') + '/' + file.name })
-                }).then(r => r.json()).then(d => {
-                    if (d.success) {
-                        document.getElementById('deployResultText').textContent = 'Deploy berhasil! ' + d.deploy.extracted + ' file diextract.';
-                        result.style.display = 'block';
-                        setTimeout(() => location.reload(), 2000);
-                    } else {
-                        AHPL.toast(d.error || 'Deploy gagal', 'error');
-                    }
-                });
+        let data;
+        try { data = JSON.parse(xhr.responseText); } catch(e) { AHPL.toast('Upload gagal', 'error'); return; }
+        if (!data.success) { AHPL.toast(data.error || 'Upload gagal', 'error'); return; }
+
+        prog.innerHTML = '<div style="margin-bottom:8px;"><i class="fas fa-spinner fa-spin"></i> Deploying...</div>';
+
+        const zipPath = '<?= addslashes(WEBSITES_PATH) ?>/' + currentDir.replace(/^\//,'') + '/' + file.name;
+        fetch('/panel/api/deploy.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+            body: JSON.stringify({ action: 'website', folder: currentDir.replace(/^\//,''), zipPath: zipPath })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                document.getElementById('deployResultText').textContent = 'Deploy berhasil! ' + d.deploy.extracted + ' file diextract.';
+                result.style.display = 'block';
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                AHPL.toast(d.error || 'Deploy gagal', 'error');
             }
-        } catch(e) { AHPL.toast('Upload gagal', 'error'); }
+        })
+        .catch(e => AHPL.toast('Deploy gagal: ' + (e.message || 'Unknown'), 'error'));
     };
     xhr.onerror = () => AHPL.toast('Upload gagal', 'error');
     xhr.open('POST', '/panel/api/upload.php');

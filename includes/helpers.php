@@ -430,21 +430,38 @@ function deployZip($zipPath, $destDir) {
     if ($zip->open($zipPath) !== true) return ['error' => 'Gagal buka ZIP'];
 
     $totalFiles = $zip->numFiles;
-    $extracted = 0;
 
+    $prefix = null;
+    for ($i = 0; $i < $totalFiles; $i++) {
+        $name = $zip->getNameIndex($i);
+        if (strpos($name, '__MACOSX') === 0 || $name === '' || $name === null) continue;
+        $first = explode('/', $name)[0];
+        if ($prefix === null) $prefix = $first;
+        else if ($first !== $prefix) { $prefix = ''; break; }
+    }
+    if ($prefix !== null && $prefix !== '') $prefix .= '/';
+    else $prefix = '';
+
+    $extracted = 0;
     for ($i = 0; $i < $totalFiles; $i++) {
         $entryName = $zip->getNameIndex($i);
         if (strpos($entryName, '__MACOSX') === 0) continue;
         if (strpos($entryName, '.') === 0) continue;
 
-        $destPath = $destDir . '/' . $entryName;
+        $relPath = $prefix ? substr($entryName, strlen($prefix)) : $entryName;
+        if ($relPath === false || $relPath === '') continue;
+
+        $destPath = $destDir . '/' . $relPath;
         if (substr($entryName, -1) === '/') {
             if (!is_dir($destPath)) mkdir($destPath, 0755, true);
         } else {
             $dirName = dirname($destPath);
             if (!is_dir($dirName)) mkdir($dirName, 0755, true);
-            copy('zip://' . $zipPath . '#' . $entryName, $destPath);
-            $extracted++;
+            $content = $zip->getFromIndex($i);
+            if ($content !== false) {
+                file_put_contents($destPath, $content);
+                $extracted++;
+            }
         }
     }
 
