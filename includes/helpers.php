@@ -52,7 +52,10 @@ function currentUser() {
     $db = getDB();
     $stmt = $db->prepare("SELECT * FROM users WHERE id = :id");
     $stmt->bindValue(':id', (int)$_SESSION['user_id'], SQLITE3_INTEGER);
-    return $stmt->querySingleArray(SQLITE3_ASSOC) ?: null;
+    $result = $stmt->execute();
+    $user = $result->fetchArray(SQLITE3_ASSOC);
+    $result->finalize();
+    return $user ?: null;
 }
 
 function needsPasswordChange() {
@@ -71,7 +74,9 @@ function login($username, $password) {
     $db = getDB();
     $stmt = $db->prepare("SELECT * FROM users WHERE username = :username");
     $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-    $user = $stmt->querySingleArray(SQLITE3_ASSOC);
+    $result = $stmt->execute();
+    $user = $result->fetchArray(SQLITE3_ASSOC);
+    $result->finalize();
 
     if ($user && password_verify($password, $user['password'])) {
         resetRateLimit($identifier);
@@ -113,7 +118,9 @@ function isRateLimited($identifier) {
 
     $stmt = $db->prepare("SELECT SUM(attempts) FROM rate_limits WHERE identifier = :id");
     $stmt->bindValue(':id', $identifier, SQLITE3_TEXT);
-    $count = $stmt->querySingle() ?: 0;
+    $result = $stmt->execute();
+    $count = (int)($result->fetchArray(SQLITE3_NUM)[0] ?? 0);
+    $result->finalize();
     return $count >= RATE_LIMIT_MAX_ATTEMPTS;
 }
 
@@ -204,14 +211,19 @@ function getSetting($key) {
     $db = getDB();
     $stmt = $db->prepare("SELECT value FROM settings WHERE key = :key");
     $stmt->bindValue(':key', $key, SQLITE3_TEXT);
-    return $stmt->querySingle();
+    $result = $stmt->execute();
+    $value = $result->fetchArray(SQLITE3_NUM)[0] ?? null;
+    $result->finalize();
+    return $value;
 }
 
 function setSetting($key, $value) {
     $db = getDB();
     $stmt = $db->prepare("SELECT COUNT(*) FROM settings WHERE key = :k");
     $stmt->bindValue(':k', $key, SQLITE3_TEXT);
-    $existing = $stmt->querySingle();
+    $result = $stmt->execute();
+    $existing = (int)($result->fetchArray(SQLITE3_NUM)[0] ?? 0);
+    $result->finalize();
 
     if ($existing) {
         $stmt = $db->prepare("UPDATE settings SET value = :v WHERE key = :k");

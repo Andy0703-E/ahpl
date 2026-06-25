@@ -26,7 +26,9 @@ if ($method === 'POST') {
 
         $stmt = $db->prepare("SELECT COUNT(*) FROM websites WHERE folder = :folder");
         $stmt->bindValue(':folder', $folder, SQLITE3_TEXT);
-        $exists = $stmt->querySingle();
+        $result = $stmt->execute();
+        $exists = (int)($result->fetchArray(SQLITE3_NUM)[0] ?? 0);
+        $result->finalize();
         if ($exists) jsonResponse(['error' => 'Folder sudah ada'], 400);
 
         $dir = WEBSITES_PATH . '/' . $folder;
@@ -56,7 +58,9 @@ if ($method === 'DELETE') {
 
     $stmt = $db->prepare("SELECT * FROM websites WHERE id = :id");
     $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
-    $site = $stmt->querySingleArray(SQLITE3_ASSOC);
+    $result = $stmt->execute();
+    $site = $result->fetchArray(SQLITE3_ASSOC);
+    $result->finalize();
     if (!$site) jsonResponse(['error' => 'Not found'], 404);
 
     $dir = WEBSITES_PATH . '/' . $site['folder'];
