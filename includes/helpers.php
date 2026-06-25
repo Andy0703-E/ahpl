@@ -361,12 +361,15 @@ function createBackup($type = 'websites') {
 // --- Service Manager ---
 
 function isProcessRunning($name) {
-    $out = @shell_exec("pidof " . escapeshellarg($name) . " 2>/dev/null");
-    if (!empty(trim($out ?? ''))) return true;
-    foreach (['ps aux', 'ps -A', 'ps'] as $cmd) {
-        $out = @shell_exec("$cmd 2>/dev/null | grep -v grep | grep " . escapeshellarg($name));
-        if (!empty(trim($out ?? ''))) return true;
+    $dirs = @glob('/proc/*/cmdline');
+    if ($dirs) {
+        foreach ($dirs as $f) {
+            $cmd = @file_get_contents($f);
+            if ($cmd !== false && strpos($cmd, $name) !== false) return true;
+        }
     }
+    $out = @shell_exec("ps 2>/dev/null | grep -v grep | grep " . escapeshellarg($name));
+    if (!empty(trim($out ?? ''))) return true;
     return false;
 }
 
