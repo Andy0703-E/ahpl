@@ -361,15 +361,20 @@ function createBackup($type = 'websites') {
 // --- Service Manager ---
 
 function isProcessRunning($name) {
-    $dirs = @glob('/proc/*/cmdline');
-    if ($dirs) {
-        foreach ($dirs as $f) {
-            $cmd = @file_get_contents($f);
-            if ($cmd !== false && strpos($cmd, $name) !== false) return true;
-        }
-    }
-    $out = @shell_exec("ps 2>/dev/null | grep -v grep | grep " . escapeshellarg($name));
+    $out = @shell_exec("pidof " . escapeshellarg($name) . " 2>/dev/null");
     if (!empty(trim($out ?? ''))) return true;
+    $out = @shell_exec("ps aux 2>/dev/null");
+    if ($out && preg_match('/\b' . preg_quote($name, '/') . '\b/', $out)) return true;
+    $out = @shell_exec("ps 2>/dev/null");
+    if ($out && preg_match('/\b' . preg_quote($name, '/') . '\b/', $out)) return true;
+    if ($name === 'php-fpm') {
+        $sock = @shell_exec("ss -tlnp 2>/dev/null | grep :9000");
+        if (!empty($sock)) return true;
+    }
+    if ($name === 'nginx') {
+        $sock = @shell_exec("ss -tlnp 2>/dev/null | grep :8080");
+        if (!empty($sock)) return true;
+    }
     return false;
 }
 
