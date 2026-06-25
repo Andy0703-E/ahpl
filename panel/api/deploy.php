@@ -1,4 +1,5 @@
 <?php
+ob_start();
 require_once dirname(__DIR__, 2) . '/config/config.php';
 require_once dirname(__DIR__, 2) . '/includes/helpers.php';
 initDatabase();
@@ -13,6 +14,7 @@ if ($method === 'POST') {
 
     // Handle direct ZIP upload + deploy (single request)
     if (!empty($_FILES['zip_file'])) {
+        set_time_limit(120);
         $folder = trim($_POST['folder'] ?? '');
         if (empty($folder)) jsonResponse(['error' => 'Folder wajib diisi'], 400);
 
@@ -24,7 +26,11 @@ if ($method === 'POST') {
         if (!is_dir($siteDir)) mkdir($siteDir, 0755, true);
 
         $tmpPath = $file['tmp_name'];
-        $res = deployZip($tmpPath, $siteDir);
+        try {
+            $res = deployZip($tmpPath, $siteDir);
+        } catch (Throwable $e) {
+            jsonResponse(['error' => 'Gagal extract ZIP: ' . $e->getMessage()], 500);
+        }
         if (isset($res['error'])) jsonResponse(['error' => $res['error']], 500);
 
         logAction('deploy_zip', "Deployed ZIP to $folder ({$res['extracted']} files)");
