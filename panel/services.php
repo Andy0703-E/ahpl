@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/header.php';
 $svcNginx = checkServiceStatus('nginx');
 $svcPhp = checkServiceStatus('php-fpm');
 $svcTunnel = checkServiceStatus('cloudflared');
-$svcTunnelUrl = getSetting(SETTING_TUNNEL_URL);
+$svcTunnelUrl = getSetting(SETTING_CLOUDFLARE_URL);
 ?>
 
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:22px;">
@@ -53,10 +53,10 @@ $svcTunnelUrl = getSetting(SETTING_TUNNEL_URL);
                 <button class="btn btn-sm btn-success" onclick="serviceAction('cloudflared','start')"><i class="fas fa-play"></i> Start</button>
                 <button class="btn btn-sm btn-danger" onclick="serviceAction('cloudflared','stop')"><i class="fas fa-stop"></i> Stop</button>
             </div>
-            <div style="margin-top:14px;text-align:left;">
-                <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;">Local URL</label>
-                <input type="text" class="form-control" id="tunnelUrl" placeholder="http://localhost:8080" value="<?= sanitize($svcTunnelUrl ?? '') ?>" style="font-size:12px;">
-                <button class="btn btn-sm btn-outline" style="margin-top:6px;width:100%;" onclick="saveTunnelUrl()"><i class="fas fa-save"></i> Simpan URL</button>
+            <div style="margin-top:14px;">
+                <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;">Tunnel URL</label>
+                <input type="text" class="form-control" id="tunnelUrl" readonly value="<?= sanitize($svcTunnelUrl ?? '') ?>" style="font-size:12px;cursor:pointer;" onclick="this.select()" placeholder="Start tunnel untuk mendapat URL">
+                <div id="tunnelQRWrap" style="margin-top:8px;text-align:center;"></div>
             </div>
         </div>
     </div>
@@ -128,32 +128,24 @@ async function fetchTunnelUrl() {
                 method: 'POST', headers: h,
                 body: JSON.stringify({ action: 'save_tunnel_url', url: data.url })
             });
+            updateTunnelQR(data.url);
         }
     } catch(e) {}
 }
 
-async function saveTunnelUrl() {
-    var url = document.getElementById('tunnelUrl').value.trim();
-    if (!url) return alert('Masukkan URL');
-    var h = { 'Content-Type': 'application/json' };
-    if (window.__CSRF_TOKEN__) h['X-CSRF-TOKEN'] = window.__CSRF_TOKEN__;
-    try {
-        var res = await fetch('/panel/api/settings.php', {
-            method: 'POST', headers: h,
-            body: JSON.stringify({ action: 'save_tunnel_url', url: url })
-        });
-        var data = await res.json();
-        if (data.success) alert('URL tunnel disimpan!');
-    } catch(e) { alert('Gagal'); }
+function updateTunnelQR(url) {
+    var wrap = document.getElementById('tunnelQRWrap');
+    if (!wrap) return;
+    wrap.innerHTML = url
+        ? '<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(url) + '" alt="QR" style="border-radius:6px;max-width:150px;">'
+        : '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     checkAllServices();
     setInterval(checkAllServices, 10000);
-    fetch('/panel/api/settings.php?action=get_tunnel_url')
-        .then(function(r) { return r.json(); })
-        .then(function(d) { if (d.url) document.getElementById('tunnelUrl').value = d.url; })
-        .catch(function() {});
+    var tu = document.getElementById('tunnelUrl');
+    if (tu && tu.value) updateTunnelQR(tu.value);
 });
 </script>
 

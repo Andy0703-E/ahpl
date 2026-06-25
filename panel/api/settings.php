@@ -10,7 +10,7 @@ if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $action = $_GET['action'] ?? '';
     if ($action === 'get_tunnel_url') {
-        $url = getSetting(SETTING_TUNNEL_URL);
+        $url = getSetting(SETTING_CLOUDFLARE_URL);
         jsonResponse(['url' => $url ?? '']);
     }
     jsonResponse(['error' => 'Invalid'], 400);
@@ -40,7 +40,7 @@ if ($action === 'change_password') {
 if ($action === 'save_tunnel_url') {
     $url = trim($input['url'] ?? '');
     if (empty($url)) jsonResponse(['error' => 'URL wajib diisi'], 400);
-    setSetting(SETTING_TUNNEL_URL, $url);
+    setSetting(SETTING_CLOUDFLARE_URL, $url);
     logAction('tunnel_url', "URL tunnel disimpan: $url");
     jsonResponse(['success' => true]);
 }

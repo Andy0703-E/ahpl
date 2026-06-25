@@ -5,7 +5,7 @@ define('BASE_PATH', dirname(__DIR__));
 
 // Settings keys
 define('SETTING_CEREBRAS_KEY', 'cerebras_key');
-define('SETTING_TUNNEL_URL', 'tunnel_url');
+define('SETTING_CLOUDFLARE_URL', 'cloudflare_url');
 
 // Security
 define('CSRF_TOKEN_NAME', 'ahpl_csrf_token');

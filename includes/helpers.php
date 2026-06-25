@@ -420,10 +420,9 @@ function startService($service) {
             if (!$cfBin) {
                 return ['error' => 'cloudflared tidak ditemukan. Install: pkg install cloudflared'];
             }
-            $tunnelUrl = getSetting(SETTING_TUNNEL_URL);
-            $url = !empty($tunnelUrl) ? $tunnelUrl : 'http://localhost:8080';
+            $localUrl = 'http://localhost:8080';
             $logFile = TUNNEL_LOG;
-            @shell_exec("nohup " . escapeshellarg($cfBin) . " tunnel --url $url > " . escapeshellarg($logFile) . " 2>&1 &");
+            @shell_exec("nohup " . escapeshellarg($cfBin) . " tunnel --url $localUrl > " . escapeshellarg($logFile) . " 2>&1 &");
             sleep(2);
             if (!isProcessRunning('cloudflared')) {
                 $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Tidak ada output';

@@ -31,7 +31,7 @@ for i in $(seq 1 10); do
     if [ -n "$URL" ]; then
         # Save ke database via sqlite3
         sqlite3 "$AHPL_HOME/database/ahpl.db" \
-            "INSERT OR REPLACE INTO settings (key, value) VALUES ('tunnel_url', '$URL');" 2>/dev/null
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('cloudflare_url', '$URL');" 2>/dev/null
         echo "[AHPL] Tunnel URL: $URL"
         break
     fi

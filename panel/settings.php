@@ -3,7 +3,7 @@ $pageTitle = 'Settings';
 require_once __DIR__ . '/includes/header.php';
 
 $cerebrasKey = getCerebrasKey();
-$tunnelUrl = getSetting(SETTING_TUNNEL_URL);
+$tunnelUrl = getSetting(SETTING_CLOUDFLARE_URL);
 $loginHistory = getLoginHistory(10);
 ?>
 
