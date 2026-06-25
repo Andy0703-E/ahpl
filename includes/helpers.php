@@ -462,7 +462,8 @@ function deployGithub($repoUrl, $destDir) {
     $output = @shell_exec($cmd);
 
     if (!is_dir($tmpDir)) {
-        return ['error' => 'Gagal clone repository. Pastikan URL benar dan git terinstall.'];
+        $errMsg = $output ? trim($output) : 'Tidak ada output';
+        return ['error' => 'Gagal clone repository: ' . $errMsg];
     }
 
     $it = new RecursiveIteratorIterator(
