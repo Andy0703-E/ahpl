@@ -6,19 +6,16 @@
 export HOME=/data/data/com.termux/files/home
 AHPL_HOME="$HOME/ahpl-server"
 
-# Start PHP-FPM (skip jika sudah jalan)
-if ! pgrep -x php-fpm > /dev/null 2>&1; then
-    php-fpm -R && echo "[AHPL] PHP-FPM started" || echo "[AHPL] PHP-FPM FAILED"
-else
-    echo "[AHPL] PHP-FPM already running"
-fi
+# Kill existing instances (biar clean start)
+pkill php-fpm 2>/dev/null
+pkill nginx 2>/dev/null
+sleep 1
 
-# Start Nginx (skip jika sudah jalan)
-if ! pgrep -x nginx > /dev/null 2>&1; then
-    nginx && echo "[AHPL] Nginx started" || echo "[AHPL] Nginx FAILED"
-else
-    echo "[AHPL] Nginx already running"
-fi
+# Start PHP-FPM
+php-fpm -R && echo "[AHPL] PHP-FPM started" || echo "[AHPL] PHP-FPM FAILED"
+
+# Start Nginx
+nginx && echo "[AHPL] Nginx started" || echo "[AHPL] Nginx FAILED"
 
 # Start Cloudflare Tunnel (opsional)
 # Uncomment baris di bawah jika ingin tunnel otomatis start:
