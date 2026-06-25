@@ -438,7 +438,13 @@ function stopService($service) {
             $out = @shell_exec('nginx -s stop 2>&1');
             break;
         case 'php-fpm':
-            $out = @shell_exec('pkill php-fpm 2>&1');
+            $pidFile = '/data/data/com.termux/files/usr/var/run/php-fpm.pid';
+            if (file_exists($pidFile)) {
+                $pid = trim(file_get_contents($pidFile));
+                $out = @shell_exec("kill -QUIT $pid 2>&1");
+            } else {
+                $out = @shell_exec('pkill -f "php-fpm: master" 2>&1');
+            }
             break;
         case 'cloudflared':
             $out = @shell_exec('pkill cloudflared 2>&1');
