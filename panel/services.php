@@ -87,7 +87,13 @@ async function checkAllServices() {
         var res = await fetch('/panel/api/services.php?action=status');
         if (!res.ok) { updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false }); return; }
         var data = await res.json();
-        if (data.services) updateAllStatuses(data.services);
+        if (data.services) {
+            updateAllStatuses(data.services);
+            var tu = document.getElementById('tunnelUrl');
+            if (data.services.cloudflared === 'running' && tu && !tu.value) {
+                setTimeout(pollTunnelUrl, 1000);
+            }
+        }
     } catch(e) {
         updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false });
     }
@@ -104,7 +110,7 @@ async function serviceAction(service, action) {
         var data = await res.json();
         if (data.success) {
             if (service === 'cloudflared' && action === 'start') {
-                setTimeout(fetchTunnelUrl, 3000);
+                setTimeout(pollTunnelUrl, 2000);
             }
             checkAllServices();
         } else {
@@ -129,8 +135,18 @@ async function fetchTunnelUrl() {
                 body: JSON.stringify({ action: 'save_tunnel_url', url: data.url })
             });
             updateTunnelQR(data.url);
+            return true;
         }
     } catch(e) {}
+    return false;
+}
+
+function pollTunnelUrl() {
+    var el = document.getElementById('tunnelUrl');
+    if (!el || el.value) return; // sudah ada URL
+    fetchTunnelUrl().then(function(ok) {
+        if (!ok) setTimeout(pollTunnelUrl, 3000);
+    });
 }
 
 function updateTunnelQR(url) {
@@ -146,6 +162,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(checkAllServices, 10000);
     var tu = document.getElementById('tunnelUrl');
     if (tu && tu.value) updateTunnelQR(tu.value);
+    // Jika tunnel running tapi URL masih kosong, polling
+    setTimeout(pollTunnelUrl, 2000);
 });
 </script>
 
