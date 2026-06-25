@@ -5,6 +5,7 @@ initDatabase();
 header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
+requireCSRF();
 
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
@@ -12,14 +13,16 @@ $action = $input['action'] ?? '';
 if ($action === 'save_key') {
     $key = trim($input['key'] ?? '');
     if (empty($key)) jsonResponse(['error' => 'Key wajib diisi'], 400);
-    
-    $db = getDB();
-    $existing = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = 'cerebras_key'");
-    if ($existing) {
-        $db->exec("UPDATE settings SET value = '" . SQLite3::escapeString($key) . "' WHERE key = 'cerebras_key'");
-    } else {
-        $db->exec("INSERT INTO settings (key, value) VALUES ('cerebras_key', '" . SQLite3::escapeString($key) . "')");
-    }
+
+    setCerebrasKey($key);
+    jsonResponse(['success' => true]);
+}
+
+if ($action === 'change_password') {
+    $newPassword = $input['password'] ?? '';
+    if (strlen($newPassword) < 6) jsonResponse(['error' => 'Password minimal 6 karakter'], 400);
+    changePassword($_SESSION['user_id'], $newPassword);
+    logAction('change_password', $_SESSION['username'] ?? '');
     jsonResponse(['success' => true]);
 }
 

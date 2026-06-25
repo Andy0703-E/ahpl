@@ -42,7 +42,6 @@ $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_t
             <p><?= formatSize($server['disk_total']) ?> Storage</p>
         </div>
     </div>
-
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
@@ -63,14 +62,13 @@ $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_t
                         <div class="progress-bar" style="margin-top:5px;"><div class="progress-fill" style="width:<?= $memPct ?>%;background:<?= $memPct > 80 ? 'var(--danger)' : 'var(--success)' ?>"></div></div>
                     </td>
                 </tr>
-
             </table>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header"><h3><i class="fas fa-history"></i> Activity Log</h3></div>
-        <div class="card-body" style="max-height:280px;overflow-y:auto;">
+        <div class="card-body" id="activityLog" style="max-height:280px;overflow-y:auto;">
             <?php while ($log = $recentLogs->fetchArray(SQLITE3_ASSOC)): ?>
                 <div style="padding:7px 0;border-bottom:1px solid #f5f5f5;font-size:12px;">
                     <span class="badge badge-info"><?= sanitize($log['action']) ?></span>
@@ -83,7 +81,16 @@ $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_t
 </div>
 
 <script>
-setTimeout(() => location.reload(), 30000);
+function refreshDashboard() {
+    fetch('/panel/api/dashboard.php', { headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ } })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) return;
+            document.getElementById('activityLog').innerHTML = data.logsHtml;
+        })
+        .catch(() => {});
+}
+setInterval(refreshDashboard, 30000);
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

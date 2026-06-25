@@ -9,15 +9,20 @@ if (isLoggedIn()) {
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-    
-    if (login($username, $password)) {
-        header('Location: /panel/dashboard.php');
-        exit;
+    if (!verifyCSRFToken()) {
+        $error = 'Invalid form submission';
+    } else {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if (login($username, $password)) {
+            header('Location: /panel/dashboard.php');
+            exit;
+        }
+        $error = 'Username atau password salah';
     }
-    $error = 'Username atau password salah';
 }
+$csrfToken = generateCSRFToken();
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -25,8 +30,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - <?= APP_NAME ?></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>.fa-fallback{display:none}</style>
     <link rel="stylesheet" href="/panel/assets/style.css">
 </head>
 <body>
@@ -34,14 +41,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-card">
             <h1><i class="fas fa-server"></i> <?= APP_NAME ?></h1>
             <p class="sub">Android Hosting Panel Lite</p>
-            
+
             <?php if ($error): ?>
                 <div style="background:#f8d7da;color:#721c24;padding:10px;border-radius:8px;margin-bottom:18px;font-size:13px;">
                     <i class="fas fa-exclamation-circle"></i> <?= $error ?>
                 </div>
             <?php endif; ?>
-            
+
             <form method="POST">
+                <input type="hidden" name="<?= CSRF_TOKEN_NAME ?>" value="<?= $csrfToken ?>">
                 <div class="form-group">
                     <label>Username</label>
                     <input type="text" name="username" class="form-control" required autofocus>
@@ -52,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-sign-in-alt"></i> Login</button>
             </form>
-            <p style="text-align:center;margin-top:16px;font-size:11px;color:#aaa;">Default: admin / admin</p>
+            <p style="text-align:center;margin-top:16px;font-size:11px;color:#aaa;">AHPL v<?= APP_VERSION ?></p>
         </div>
     </div>
 </body>

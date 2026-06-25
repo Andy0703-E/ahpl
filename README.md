@@ -6,6 +6,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite)
 ![Nginx](https://img.shields.io/badge/Nginx-1.25-009639?style=flat&logo=nginx)
 ![Android](https://img.shields.io/badge/Android-8+-3DDC84?style=flat&logo=android)
+![Version](https://img.shields.io/badge/Version-1.1.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 ---
@@ -19,6 +20,8 @@
 - [Instalasi](#instalasi)
 - [Konfigurasi](#konfigurasi)
 - [Cara Pakai](#cara-pakai)
+- [Keamanan](#keamanan)
+- [Testing](#testing)
 - [Struktur Folder](#struktur-folder)
 - [API Reference](#api-reference)
 - [Troubleshooting](#troubleshooting)
@@ -32,14 +35,15 @@
 
 | Fitur | Deskripsi |
 |-------|-----------|
-| **Login** | Autentikasi admin dengan password hashing |
-| **Dashboard** | Status server, tunnel, website, storage, uptime, battery, suhu |
-| **Website Manager** | Buat dan hapus website |
-| **File Manager** | Upload, rename, delete, download, buat folder |
-| **Deploy ZIP** | Upload ZIP otomatis extract |
+| **Login** | Autentikasi admin dengan CSRF protection + rate limiting |
+| **Dashboard** | Status server, website, storage, RAM, activity log (AJAX refresh) |
+| **Website Manager** | Buat dan hapus website, dukung AI generate (Cerebras Z-AI GLM-4.7) |
+| **File Manager** | Upload (drag-drop, multi-file), rename, delete, download, buat folder |
 | **Code Editor** | Edit file HTML/CSS/JS/PHP langsung di browser (CodeMirror) |
-| **Cloudflare Tunnel** | Akses panel dari mana saja via internet |
-| **Backup** | Backup websites, database, atau full backup ke ZIP |
+| **Cloudflare Tunnel** | Akses panel dari mana saja via internet (via terminal) |
+| **Force Password Change** | Paksa ganti password default admin saat login pertama |
+| **AJAX Dashboard** | Auto-refresh activity log tanpa reload halaman penuh |
+| **Mobile Support** | Responsive sidebar dengan hamburger toggle |
 
 ---
 
@@ -79,11 +83,11 @@
 │────────┼────────────────────────│
 │ Home   │ ┌──────┐ ┌──────┐     │
 │ Website│ │Online│ │  3   │     │
-│ Files  │ │Tunnel│ │Sites │     │
+│ Files  │ │Server│ │Sites │     │
 │ Editor │ └──────┘ └──────┘     │
-│ Tunnel │ ┌──────┐ ┌──────┐     │
-│ Backup │ │4.2GB │ │ 2d5h │     │
-│        │ │Store │ │Up    │     │
+│        │ ┌──────┐ ┌──────┐     │
+│        │ │4.2GB │ │   4  │     │
+│        │ │Store │ │Files │     │
 │────────│ └──────┘ └──────┘     │
 └─────────────────────────────────┘
 ```
@@ -279,7 +283,7 @@ http://localhost:8080
 | **Username** | `admin` |
 | **Password** | `admin` |
 
-> **PENTING:** Segera ganti password setelah login pertama!
+> **PENTING:** Anda akan diminta mengganti password saat login pertama!
 
 ### 4. Buat Website
 
@@ -293,20 +297,56 @@ http://localhost:8080
 1. Buka **File Manager**
 2. Masuk ke folder website
 3. Klik **Upload**
-4. Pilih file
+4. Pilih file (drag-drop atau klik)
 
 ### 6. Edit File
 
-1. Buka **Code Editor**
-2. Pilih file dari File Manager
-3. Edit dan klik **Save**
+1. Buka **File Manager**
+2. Klik icon edit pada file HTML/CSS/JS/PHP
+3. Edit dengan CodeMirror dan klik **Save**
 
 ### 7. Akses dari Internet
 
-1. Buka **Tunnel**
-2. Klik **Random Domain** atau masukkan domain sendiri
-3. Klik **Start**
-4. URL akan muncul di dashboard
+Jalankan Cloudflare Tunnel di Termux:
+
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+
+---
+
+## Keamanan
+
+AHPL v1.1.0 menerapkan beberapa lapisan keamanan:
+
+| Fitur | Keterangan |
+|-------|------------|
+| **CSRF Protection** | Setiap form dan API call memerlukan CSRF token valid |
+| **Rate Limiting** | Maksimal 5 percobaan login dalam 5 menit |
+| **Prepared Statements** | Semua query SQL menggunakan parameter binding |
+| **SSL Verification** | API call ke Cerebras menggunakan SSL verification |
+| **Force Password Change** | Password default (admin/admin) harus diganti saat login pertama |
+| **Path Traversal Protection** | Semua file operation divalidasi dengan `realpath()` |
+| **ZIP Extraction Safety** | Maksimal 500MB extract size dan depth 5 level |
+| **Security Headers** | X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy |
+| **Error Logging** | Error dari API dicatat ke file log (bukan di-display) |
+
+---
+
+## Testing
+
+AHPL memiliki test suite sederhana yang bisa dijalankan tanpa dependensi eksternal:
+
+```bash
+php tests/run.php
+```
+
+Test mencakup:
+- **test_helpers.php**: Fungsi utility (sanitize, formatSize, resolvePath, CSRF token, dll)
+- **test_database.php**: Operasi database (create table, insert, query)
+- **test_security.php**: CSRF token verification, rate limiting
+
+> Test database dan security membutuhkan ekstensi SQLite3 (tersedia di Termux).
 
 ---
 
@@ -320,15 +360,13 @@ http://localhost:8080
 │   ├── websites.php
 │   ├── files.php
 │   ├── editor.php
-│   ├── tunnel.php
-│   ├── backup.php
+│   ├── settings.php
 │   ├── api/               # API endpoints
 │   ├── assets/            # CSS & JS
 │   └── includes/          # Header & footer
 ├── websites/              # Folder website
 │   ├── portfolio/
-│   │   ├── index.html
-│   │   └── style.css
+│   │   └── index.html
 │   └── blog/
 │       └── index.html
 ├── uploads/               # File upload
@@ -357,6 +395,7 @@ Parameters:
 
 ```bash
 DELETE /panel/api/file.php?path=/websites/portfolio/old-file.html
+Headers: X-CSRF-TOKEN: <token>
 ```
 
 ### Rename File
@@ -364,6 +403,7 @@ DELETE /panel/api/file.php?path=/websites/portfolio/old-file.html
 ```bash
 PUT /panel/api/file.php
 Content-Type: application/json
+Headers: X-CSRF-TOKEN: <token>
 
 {
   "action": "rename",
@@ -377,6 +417,7 @@ Content-Type: application/json
 ```bash
 POST /panel/api/file.php
 Content-Type: application/json
+Headers: X-CSRF-TOKEN: <token>
 
 {
   "action": "mkdir",
@@ -390,6 +431,7 @@ Content-Type: application/json
 ```bash
 POST /panel/api/websites.php
 Content-Type: application/json
+Headers: X-CSRF-TOKEN: <token>
 
 {
   "action": "create",
@@ -402,32 +444,51 @@ Content-Type: application/json
 
 ```bash
 DELETE /panel/api/websites.php?id=1
+Headers: X-CSRF-TOKEN: <token>
 ```
 
-### Tunnel Control
+### AI Generate Website
 
 ```bash
-POST /panel/api/tunnel.php
+POST /panel/api/cerebras.php
 Content-Type: application/json
+Headers: X-CSRF-TOKEN: <token>
 
 {
-  "action": "start"
+  "prompt": "Buat website portofolio dengan tema gelam"
 }
-
-# Actions: start, stop, set_domain
 ```
 
-### Backup
+### Settings (API Key)
 
 ```bash
-POST /panel/api/backup.php
+POST /panel/api/settings.php
 Content-Type: application/json
+Headers: X-CSRF-TOKEN: <token>
 
 {
-  "type": "websites"
+  "action": "save_key",
+  "key": "cerebras-api-key-anda"
 }
+```
 
-# Types: websites, database, full
+### Change Password
+
+```bash
+POST /panel/api/settings.php
+Content-Type: application/json
+Headers: X-CSRF-TOKEN: <token>
+
+{
+  "action": "change_password",
+  "password": "password-baru"
+}
+```
+
+### Dashboard (Activity Log)
+
+```bash
+GET /panel/api/dashboard.php
 ```
 
 ---
@@ -545,7 +606,7 @@ SQLite, sangat ringan dan tidak butuh service terpisah.
 
 ### Bisa multi-user?
 
-Versi V1 belum support. Akan ada di versi mendatang.
+Belum support. Akan ada di versi mendatang.
 
 ### Auto-start saat HP nyala?
 
@@ -576,22 +637,26 @@ git pull
 ## Roadmap
 
 ### V1 (Saat Ini)
-- [x] Login
-- [x] Dashboard
-- [x] File Manager
-- [x] Website Manager
-- [x] Cloudflare Tunnel
-- [x] Backup
+- [x] Login + CSRF protection
+- [x] Dashboard dengan AJAX auto-refresh
+- [x] File Manager (upload, rename, delete, download)
+- [x] Website Manager (CRUD + AI Generate)
+- [x] Code Editor (CodeMirror)
+- [x] Security: rate limiting, prepared statements, force password change
+- [x] Mobile responsive sidebar
+- [x] Test suite
 
 ### V2
-- [ ] ZIP Deploy
+- [ ] ZIP Deploy (upload ZIP langsung extract ke folder website)
 - [ ] Restore Backup
-- [ ] Code Editor
+- [ ] Multi-website management
+- [ ] Database backup & restore
 
 ### V3
 - [ ] Theme Customizer
 - [ ] PWA Support
-- [ ] Multi Website Management
+- [ ] Multi-user support
+- [ ] Subdomain management
 
 ---
 
@@ -603,9 +668,12 @@ git pull
 | Database | SQLite |
 | Web Server | Nginx |
 | Tunnel | Cloudflare Tunnel |
-| Frontend | HTML, CSS, JavaScript |
-| Code Editor | CodeMirror |
-| Platform | Android + Termux |
+| Frontend | HTML, CSS, JavaScript (vanilla) |
+| Code Editor | CodeMirror 5 |
+| AI Integration | Cerebras Z-AI GLM-4.7 |
+| Icons | Font Awesome 6 |
+| Font | Inter |
+| Platform | Android 8+ (Termux) |
 
 ---
 

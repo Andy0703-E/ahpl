@@ -10,7 +10,7 @@ $isFile = false;
 
 if (!empty($file)) {
     $base = WEBSITES_PATH;
-    $full = rtrim($base . '/' . ltrim($file, '/'), '/');
+    $full = resolvePath($base, $file);
     if (isPathSafe($full, $base) && file_exists($full) && !is_dir($full)) {
         $content = file_get_contents($full);
         $fileName = basename($full);
@@ -86,7 +86,7 @@ async function saveFile() {
     const content = editor.getValue();
     const res = await fetch('/panel/api/file.php', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
         body: JSON.stringify({ action: 'save', path: <?= json_encode($file) ?>, content })
     });
     const data = await res.json();

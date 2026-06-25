@@ -1,8 +1,8 @@
 RewriteEngine On
 
 RewriteRule ^$ /index.php [L]
-RewriteRule ^admin$ /admin/login.php [L]
-RewriteRule ^admin/(.*)$ /admin/$1 [L]
+RewriteRule ^panel$ /panel/login.php [L]
+RewriteRule ^panel/(.*)$ /panel/$1 [L]
 RewriteRule ^api/(.*)$ /api/$1 [L]
 
 <FilesMatch "\.(db|sqlite|log|pid|domain)$">
@@ -17,4 +17,6 @@ RewriteRule ^api/(.*)$ /api/$1 [L]
 <IfModule mod_headers.c>
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>

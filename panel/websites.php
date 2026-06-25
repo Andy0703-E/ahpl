@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/header.php';
 
 $db = getDB();
 $websites = $db->query("SELECT * FROM websites ORDER BY id DESC");
-$hasKey = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = 'cerebras_key'");
+$hasKey = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = '" . SQLite3::escapeString(SETTING_CEREBRAS_KEY) . "'");
 ?>
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
@@ -87,19 +87,20 @@ async function createWebsite() {
     const folder = document.getElementById('siteFolder').value.trim();
     const useAI = document.getElementById('useAI').checked;
     const prompt = document.getElementById('aiPrompt').value.trim();
-    
+
     if (!name || !folder) return AHPL.toast('Nama dan folder wajib diisi', 'error');
     if (useAI && !prompt) return AHPL.toast('Masukkan deskripsi untuk AI generate', 'error');
-    
+
     document.getElementById('createBtn').disabled = true;
-    
+
     let aiHtml = '';
-    
+
     if (useAI) {
         document.getElementById('aiStatus').style.display = 'block';
         try {
             const aiRes = await AHPL.api('/panel/api/cerebras.php', {
                 method: 'POST',
+                headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
                 body: JSON.stringify({ prompt })
             });
             aiHtml = aiRes.html;
@@ -111,13 +112,14 @@ async function createWebsite() {
         }
         document.getElementById('aiStatus').style.display = 'none';
     }
-    
+
     try {
         const res = await AHPL.api('/panel/api/websites.php', {
             method: 'POST',
+            headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
             body: JSON.stringify({ action: 'create', name, folder, html: aiHtml })
         });
-        
+
         if (res.success) {
             document.getElementById('createModal').classList.remove('active');
             AHPL.toast(useAI ? 'Website dibuat dengan AI!' : 'Website dibuat!');
@@ -126,13 +128,16 @@ async function createWebsite() {
     } catch (e) {
         AHPL.toast(e.message || 'Gagal membuat website', 'error');
     }
-    
+
     document.getElementById('createBtn').disabled = false;
 }
 
 async function deleteWebsite(id, name) {
     if (!AHPL.confirm('Hapus website "' + name + '"?')) return;
-    const res = await AHPL.api('/panel/api/websites.php?id=' + id, { method: 'DELETE' });
+    const res = await AHPL.api('/panel/api/websites.php?id=' + id, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }
+    });
     if (res.success) { AHPL.toast('Website dihapus'); setTimeout(() => location.reload(), 500); }
 }
 

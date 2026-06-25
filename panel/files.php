@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/header.php';
 $currentDir = $_GET['dir'] ?? '/';
 $baseDir = WEBSITES_PATH;
 
-$fullDir = rtrim($baseDir . '/' . ltrim($currentDir, '/'), '/');
+$fullDir = resolvePath($baseDir, $currentDir);
 if (!is_dir($fullDir)) {
     $currentDir = '/';
     $fullDir = $baseDir;
@@ -62,9 +62,9 @@ if (!isPathSafe($fullDir, $baseDir)) {
             }
         }
         usort($items, function($a, $b) {
-    if ($a['is_dir'] !== $b['is_dir']) return $a['is_dir'] ? -1 : 1;
-    return strcasecmp($a['name'], $b['name']);
-});
+            if ($a['is_dir'] !== $b['is_dir']) return $a['is_dir'] ? -1 : 1;
+            return strcasecmp($a['name'], $b['name']);
+        });
         ?>
 
         <?php if (empty($items)): ?>
@@ -148,7 +148,10 @@ function showNewFolder() { document.getElementById('folderName').value = ''; doc
 
 async function deleteItem(path, name) {
     if (!AHPL.confirm('Hapus "' + name + '"?')) return;
-    const res = await AHPL.api('/panel/api/file.php?path=' + encodeURIComponent(path), { method: 'DELETE' });
+    const res = await AHPL.api('/panel/api/file.php?path=' + encodeURIComponent(path), {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }
+    });
     if (res.success) { AHPL.toast('Dihapus'); setTimeout(() => location.reload(), 400); }
 }
 
@@ -164,6 +167,7 @@ async function doRename() {
     if (!newName) return AHPL.toast('Masukkan nama', 'error');
     const res = await AHPL.api('/panel/api/file.php', {
         method: 'PUT',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
         body: JSON.stringify({ action: 'rename', path, newName })
     });
     if (res.success) { AHPL.toast('Direname'); closeModal('renameModal'); setTimeout(() => location.reload(), 400); }
@@ -174,6 +178,7 @@ async function createFolder() {
     if (!name) return AHPL.toast('Masukkan nama', 'error');
     const res = await AHPL.api('/panel/api/file.php', {
         method: 'POST',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
         body: JSON.stringify({ action: 'mkdir', dir: currentDir, name })
     });
     if (res.success) { AHPL.toast('Folder dibuat'); closeModal('folderModal'); setTimeout(() => location.reload(), 400); }
@@ -202,6 +207,7 @@ async function doUpload(files) {
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = e => { if (e.lengthComputable) { const el = document.getElementById('p-' + file.name.replace(/\./g,'_')); if(el) el.style.width = Math.round(e.loaded/e.total*100)+'%'; } };
         xhr.onload = () => AHPL.toast(file.name + ' diupload');
+        xhr.onerror = () => AHPL.toast(file.name + ' gagal diupload', 'error');
         xhr.open('POST', '/panel/api/upload.php');
         xhr.send(fd);
     }

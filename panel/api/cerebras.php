@@ -11,11 +11,9 @@ ob_clean();
 header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
+requireCSRF();
 
-$db = getDB();
-$apiKey = $db->querySingle("SELECT value FROM settings WHERE key = 'cerebras_key'");
-$db->close();
-
+$apiKey = getCerebrasKey();
 if (!$apiKey) jsonResponse(['error' => 'API Key Cerebras belum diatur. Masukkan di Settings > API Key'], 400);
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -45,8 +43,8 @@ curl_setopt_array($ch, [
         'Authorization: Bearer ' . $apiKey,
     ],
     CURLOPT_TIMEOUT => 120,
-    CURLOPT_SSL_VERIFYPEER => false,
-    CURLOPT_SSL_VERIFYHOST => false,
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_SSL_VERIFYHOST => 2,
 ]);
 
 $response = curl_exec($ch);
@@ -54,13 +52,18 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $error = curl_error($ch);
 curl_close($ch);
 
-if ($error) jsonResponse(['error' => 'Curl error: ' . $error], 500);
+if ($error) {
+    appLog("Cerebras curl error: $message", 'ERROR');
+    jsonResponse(['error' => 'Curl error: ' . $error], 500);
+}
 if ($httpCode !== 200) {
+    appLog("Cerebras API HTTP $httpCode: " . substr($response, 0, 200), 'ERROR');
     jsonResponse(['error' => 'API HTTP ' . $httpCode . ': ' . substr($response, 0, 500)], 500);
 }
 
 $data = json_decode($response, true);
 if (!$data || !isset($data['choices'][0]['message']['content'])) {
+    appLog("Cerebras invalid response: " . substr($response, 0, 200), 'ERROR');
     jsonResponse(['error' => 'AI response invalid: ' . substr($response, 0, 500)], 500);
 }
 

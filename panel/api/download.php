@@ -7,7 +7,7 @@ if (!isLoggedIn()) { header('Location: /panel/login.php'); exit; }
 
 $path = $_GET['path'] ?? '';
 $base = WEBSITES_PATH;
-$full = rtrim($base . '/' . ltrim($path, '/'), '/');
+$full = resolvePath($base, $path);
 
 if (!isPathSafe($full, $base) || !file_exists($full) || is_dir($full)) {
     http_response_code(404);
