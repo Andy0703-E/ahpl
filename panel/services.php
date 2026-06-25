@@ -58,22 +58,32 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <script>
+function updateServiceStatus(s, running) {
+    const id = s.replace('-', '');
+    const el = document.getElementById(id + 'Status');
+    const label = document.getElementById(id + 'Label');
+    if (!el || !label) return;
+    el.className = 'service-status ' + (running ? 'running' : 'stopped');
+    el.title = running ? 'Running' : 'Stopped';
+    label.textContent = running ? 'Running' : 'Stopped';
+    label.style.color = running ? 'var(--success)' : 'var(--text-muted)';
+}
+
+function updateAllStatuses(services) {
+    ['nginx','php-fpm','cloudflared'].forEach(s => {
+        updateServiceStatus(s, services[s] === 'running');
+    });
+}
+
 async function checkAllServices() {
     try {
-        const res = await AHPL.api('/panel/api/services.php?action=status');
-        if (res.services) {
-            ['nginx','php-fpm','cloudflared'].forEach(s => {
-                const id = s.replace('-', '');
-                const el = document.getElementById(id + 'Status');
-                const label = document.getElementById(id + 'Label');
-                const status = res.services[s] === 'running';
-                el.className = 'service-status ' + (status ? 'running' : 'stopped');
-                el.title = status ? 'Running' : 'Stopped';
-                label.textContent = status ? 'Running' : 'Stopped';
-                label.style.color = status ? 'var(--success)' : 'var(--text-muted)';
-            });
-        }
-    } catch(e) { /* ignore */ }
+        const res = await fetch('/panel/api/services.php?action=status');
+        if (!res.ok) { updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false }); return; }
+        const data = await res.json();
+        if (data.services) updateAllStatuses(data.services);
+    } catch(e) {
+        updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false });
+    }
 }
 
 async function serviceAction(service, action) {
@@ -84,6 +94,9 @@ async function serviceAction(service, action) {
         });
         if (res.success) {
             AHPL.toast(service + ' ' + action + ' berhasil!');
+            if (service === 'cloudflared' && action === 'start') {
+                setTimeout(fetchTunnelUrl, 3000);
+            }
             checkAllServices();
         } else {
             AHPL.toast(res.error || 'Gagal', 'error');
@@ -91,6 +104,23 @@ async function serviceAction(service, action) {
     } catch(e) {
         AHPL.toast(e.message || 'Error', 'error');
     }
+}
+
+async function fetchTunnelUrl() {
+    try {
+        const res = await fetch('/panel/api/tunnel-url.php');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.url) {
+            document.getElementById('tunnelUrl').value = data.url;
+            await fetch('/panel/api/settings.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+                body: JSON.stringify({ action: 'save_tunnel_url', url: data.url })
+            });
+            AHPL.toast('URL tunnel otomatis tersimpan!');
+        }
+    } catch(e) { /* silent */ }
 }
 
 async function saveTunnelUrl() {
@@ -106,6 +136,12 @@ async function saveTunnelUrl() {
 document.addEventListener('DOMContentLoaded', function() {
     checkAllServices();
     setInterval(checkAllServices, 10000);
+
+    // Load saved tunnel URL
+    fetch('/panel/api/settings.php?action=get_tunnel_url')
+        .then(r => r.json())
+        .then(d => { if (d.url) document.getElementById('tunnelUrl').value = d.url; })
+        .catch(() => {});
 });
 </script>
 

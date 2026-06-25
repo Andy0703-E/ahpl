@@ -385,7 +385,7 @@ function startService($service) {
             $out = @shell_exec('nginx 2>&1');
             break;
         case 'php-fpm':
-            $out = @shell_exec('php-fpm 2>&1');
+            $out = @shell_exec('php-fpm -R 2>&1');
             break;
         case 'cloudflared':
             $cfBin = null;

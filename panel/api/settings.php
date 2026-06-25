@@ -5,6 +5,17 @@ initDatabase();
 header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
+
+// GET: read-only
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $action = $_GET['action'] ?? '';
+    if ($action === 'get_tunnel_url') {
+        $url = getSetting(SETTING_TUNNEL_URL);
+        jsonResponse(['url' => $url ?? '']);
+    }
+    jsonResponse(['error' => 'Invalid'], 400);
+}
+
 requireCSRF();
 
 $input = json_decode(file_get_contents('php://input'), true);
