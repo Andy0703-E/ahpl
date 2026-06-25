@@ -53,7 +53,7 @@ $svcTunnelUrl = getSetting(SETTING_CLOUDFLARE_URL);
                 <button class="btn btn-sm btn-success" onclick="serviceAction('cloudflared','start')"><i class="fas fa-play"></i> Start</button>
                 <button class="btn btn-sm btn-danger" onclick="serviceAction('cloudflared','stop')"><i class="fas fa-stop"></i> Stop</button>
             </div>
-            <div style="margin-top:14px;">
+            <div id="tunnelUrlSection" style="margin-top:14px;display:<?= $svcTunnel === 'running' ? 'block' : 'none' ?>;">
                 <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;">Tunnel URL</label>
                 <input type="text" class="form-control" id="tunnelUrl" readonly value="<?= sanitize($svcTunnelUrl ?? '') ?>" style="font-size:12px;cursor:pointer;" onclick="this.select()" placeholder="Start tunnel untuk mendapat URL">
                 <div id="tunnelQRWrap" style="margin-top:8px;text-align:center;"></div>
@@ -74,6 +74,11 @@ function updateServiceStatus(s, running) {
     el.title = running ? 'Running' : 'Stopped';
     label.textContent = running ? 'Running' : 'Stopped';
     label.style.color = running ? 'var(--success)' : 'var(--text-muted)';
+    // Tampilkan/sembunyikan URL tunnel hanya saat running
+    if (s === 'cloudflared') {
+        var section = document.getElementById('tunnelUrlSection');
+        if (section) section.style.display = running ? 'block' : 'none';
+    }
 }
 
 function updateAllStatuses(services) {
