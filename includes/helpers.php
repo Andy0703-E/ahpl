@@ -382,13 +382,17 @@ function startService($service) {
             $out = @shell_exec('php-fpm 2>&1');
             break;
         case 'cloudflared':
+            $which = @shell_exec("command -v cloudflared 2>/dev/null || which cloudflared 2>/dev/null");
+            if (empty(trim($which ?? ''))) {
+                return ['error' => 'cloudflared tidak terinstall. Install: pkg install cloudflared'];
+            }
             $tunnelUrl = getSetting(SETTING_TUNNEL_URL);
             $url = !empty($tunnelUrl) ? $tunnelUrl : 'http://localhost:8080';
             $logFile = sys_get_temp_dir() . '/cloudflared.log';
-            $out = @shell_exec("nohup cloudflared tunnel --url $url > $logFile 2>&1 &");
+            @shell_exec("nohup " . trim($which) . " tunnel --url $url > $logFile 2>&1 &");
             sleep(2);
             if (!isProcessRunning('cloudflared')) {
-                $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Unknown error';
+                $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Tidak ada output';
                 return ['error' => 'cloudflared gagal start: ' . substr($err, 0, 200)];
             }
             return ['success' => true, 'status' => 'running'];
