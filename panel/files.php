@@ -32,7 +32,6 @@ if (!isPathSafe($fullDir, $baseDir)) {
         </div>
         <button class="btn btn-sm btn-primary" onclick="showUpload()"><i class="fas fa-upload"></i> Upload</button>
         <button class="btn btn-sm btn-success" onclick="showNewFolder()"><i class="fas fa-folder-plus"></i> Folder</button>
-        <button class="btn btn-sm btn-info" onclick="showDeploy()" title="Deploy ZIP ke folder ini"><i class="fas fa-rocket"></i> Deploy</button>
     </div>
 
     <ul class="fm-list">
@@ -86,9 +85,6 @@ if (!isPathSafe($fullDir, $baseDir)) {
                     <span class="fm-meta"><?= $item['modified'] ?></span>
                     <div class="fm-actions">
                         <?php if (!$item['is_dir']): ?>
-                            <?php if ($item['ext'] === 'zip'): ?>
-                                <button class="btn-icon" onclick="deployZipHere('<?= sanitize($item['path']) ?>')" title="Deploy ZIP ke sini" style="color:var(--success);"><i class="fas fa-rocket"></i></button>
-                            <?php endif; ?>
                             <a href="/panel/api/download.php?path=<?= urlencode($item['path']) ?>" class="btn-icon" title="Download"><i class="fas fa-download"></i></a>
                             <?php if (in_array($item['ext'], ['html','htm','css','js','php','json','txt'])): ?>
                                 <a href="/panel/editor.php?file=<?= urlencode($item['path']) ?>" class="btn-icon" title="Edit"><i class="fas fa-pen"></i></a>
@@ -117,19 +113,7 @@ if (!isPathSafe($fullDir, $baseDir)) {
     </div>
 </div>
 
-<div class="modal-overlay" id="deployModal">
-    <div class="modal" style="max-width:500px;">
-        <div class="modal-header"><h3><i class="fas fa-rocket"></i> Deploy ZIP</h3><button class="modal-close" onclick="closeModal('deployModal')">&times;</button></div>
-        <div class="modal-body">
-            <p style="font-size:13px;color:#666;margin-bottom:16px;">Upload file ZIP dan extract isinya langsung ke folder ini. Semua file akan di-overwrite.</p>
-            <div class="upload-zone" id="deployZone" style="padding:20px;">
-                <div class="icon" style="font-size:32px;"><i class="fas fa-file-archive"></i></div>
-                <p>Klik atau seret file ZIP ke sini</p>
-            </div>
-            <div id="deployProgress" style="margin-top:12px;"></div>
-        </div>
-    </div>
-</div>
+
 
 <div class="modal-overlay" id="folderModal">
     <div class="modal">
@@ -163,7 +147,6 @@ const currentDir = '<?= addslashes($currentDir) ?>';
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 function showUpload() { document.getElementById('uploadModal').classList.add('active'); }
 function showNewFolder() { document.getElementById('folderName').value = ''; document.getElementById('folderModal').classList.add('active'); }
-function showDeploy() { document.getElementById('deployModal').classList.add('active'); }
 
 async function deleteItem(path, name) {
     if (!AHPL.confirm('Hapus "' + name + '"?')) return;
@@ -242,78 +225,6 @@ async function doUpload(files) {
     setTimeout(() => location.reload(), 2000);
 }
 
-// Deploy ZIP
-document.getElementById('deployZone').addEventListener('click', function() {
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = '.zip';
-    inp.onchange = () => deployZipUpload(inp.files[0]);
-    inp.click();
-});
-['dragenter','dragover'].forEach(e => document.getElementById('deployZone').addEventListener(e, ev => { ev.preventDefault(); ev.currentTarget.classList.add('dragover'); }));
-['dragleave','drop'].forEach(e => document.getElementById('deployZone').addEventListener(e, ev => { ev.preventDefault(); ev.currentTarget.classList.remove('dragover'); if(e.type === 'drop') deployZipUpload(ev.dataTransfer.files[0]); }));
-
-async function deployZipUpload(file) {
-    if (!file || !file.name.endsWith('.zip')) return AHPL.toast('Pilih file ZIP', 'error');
-    const prog = document.getElementById('deployProgress');
-    prog.innerHTML = '<div style="margin-bottom:8px;"><strong>' + AHPL.escapeHtml(file.name) + '</strong><div class="progress-bar"><div class="progress-fill" style="width:0%" id="deployPbar"></div></div><div style="font-size:11px;color:#888;margin-top:2px;" id="deployPct">0%</div></div><div style="font-size:12px;color:#888;margin-top:6px;" id="deployStatus">Uploading...</div>';
-
-    const fd = new FormData();
-    fd.append('zip_file', file);
-    fd.append('folder', currentDir.replace(/^\//, ''));
-    fd.append('<?= CSRF_TOKEN_NAME ?>', window.__CSRF_TOKEN__);
-
-    const xhr = new XMLHttpRequest();
-    xhr.upload.onprogress = e => {
-        if (e.lengthComputable) {
-            const pct = Math.round(e.loaded / e.total * 100);
-            document.getElementById('deployPbar').style.width = pct + '%';
-            document.getElementById('deployPct').textContent = pct + '%';
-        }
-    };
-
-    xhr.onload = function () {
-        let data;
-        try { data = JSON.parse(xhr.responseText); } catch (e) {
-            AHPL.toast('Gagal parsing response', 'error');
-            document.getElementById('deployStatus').textContent = 'Error: ' + xhr.responseText.substring(0, 100);
-            return;
-        }
-        if (data.success) {
-            document.getElementById('deployStatus').textContent = 'Extracting...';
-            setTimeout(() => {
-                closeModal('deployModal');
-                AHPL.toast('Deploy berhasil! ' + data.deploy.extracted + ' file diextract.');
-                setTimeout(() => location.reload(), 1500);
-            }, 300);
-        } else {
-            AHPL.toast(data.error || 'Deploy gagal', 'error');
-            document.getElementById('deployStatus').textContent = 'Error: ' + (data.error || 'gagal');
-        }
-    };
-    xhr.onerror = () => {
-        AHPL.toast('Upload gagal (koneksi)', 'error');
-        document.getElementById('deployStatus').textContent = 'Error: koneksi gagal';
-    };
-    xhr.open('POST', '/panel/api/deploy.php');
-    xhr.send(fd);
-}
-
-async function deployZipHere(path) {
-    if (!AHPL.confirm('Deploy ZIP ' + path.split('/').pop() + ' ke folder ini?')) return;
-    const folder = currentDir.replace(/^\//, '') || '';
-    try {
-        const res = await AHPL.api('/panel/api/deploy.php', {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'website', folder: folder, zipPath: '<?= addslashes(WEBSITES_PATH) ?>/' + folder + '/' + path.split('/').pop() })
-        });
-        if (res.success) {
-            AHPL.toast(res.deploy.extracted + ' file dideploy!');
-            setTimeout(() => location.reload(), 1000);
-        }
-    } catch(e) { AHPL.toast(e.message || 'Deploy gagal', 'error'); }
-}
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
