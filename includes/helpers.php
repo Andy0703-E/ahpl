@@ -360,21 +360,16 @@ function createBackup($type = 'websites') {
 
 // --- Service Manager ---
 
+function isProcessRunning($name) {
+    $out = @shell_exec("pidof $name 2>/dev/null");
+    if (!empty(trim($out ?? ''))) return true;
+    $out = @shell_exec("ps aux 2>/dev/null | grep -v grep | grep \"$name\"");
+    return !empty(trim($out ?? ''));
+}
+
 function checkServiceStatus($service) {
     if (PHP_OS_FAMILY === 'Windows') return 'unknown';
-    switch ($service) {
-        case 'nginx':
-            $out = @shell_exec('pgrep -x nginx 2>/dev/null');
-            return !empty($out) ? 'running' : 'stopped';
-        case 'php-fpm':
-            $out = @shell_exec('pgrep -x php-fpm 2>/dev/null');
-            return !empty($out) ? 'running' : 'stopped';
-        case 'cloudflared':
-            $out = @shell_exec('pgrep -x cloudflared 2>/dev/null');
-            return !empty($out) ? 'running' : 'stopped';
-        default:
-            return 'unknown';
-    }
+    return isProcessRunning($service) ? 'running' : 'stopped';
 }
 
 function startService($service) {
@@ -389,8 +384,14 @@ function startService($service) {
         case 'cloudflared':
             $tunnelUrl = getSetting(SETTING_TUNNEL_URL);
             $url = !empty($tunnelUrl) ? $tunnelUrl : 'http://localhost:8080';
-            $out = @shell_exec("nohup cloudflared tunnel --url $url > /dev/null 2>&1 &");
-            break;
+            $logFile = sys_get_temp_dir() . '/cloudflared.log';
+            $out = @shell_exec("nohup cloudflared tunnel --url $url > $logFile 2>&1 &");
+            sleep(2);
+            if (!isProcessRunning('cloudflared')) {
+                $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Unknown error';
+                return ['error' => 'cloudflared gagal start: ' . substr($err, 0, 200)];
+            }
+            return ['success' => true, 'status' => 'running'];
         default:
             return ['error' => 'Service tidak dikenal'];
     }
