@@ -41,6 +41,14 @@ if ($method === 'POST') {
         $res = deployGithub($repo, $siteDir);
         if (isset($res['error'])) jsonResponse(['error' => $res['error']], 500);
 
+        $db = getDB();
+        $name = basename($repo, '.git');
+        $name = str_replace(['-','_'], ' ', $name);
+        $stmt = $db->prepare("INSERT OR IGNORE INTO websites (name, folder) VALUES (:name, :folder)");
+        $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+        $stmt->bindValue(':folder', $folder, SQLITE3_TEXT);
+        $stmt->execute();
+
         logAction('deploy_github', "Deployed $repo to $folder ({$res['copied']} files)");
         jsonResponse(['success' => true, 'deploy' => $res]);
     }

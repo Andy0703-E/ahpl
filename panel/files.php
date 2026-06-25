@@ -295,9 +295,9 @@ async function deployZipUpload(file) {
         .then(r => r.json())
         .then(d => {
             if (d.success) {
-                document.getElementById('deployResultText').textContent = 'Deploy berhasil! ' + d.deploy.extracted + ' file diextract.';
-                result.style.display = 'block';
-                setTimeout(() => location.reload(), 2000);
+                closeModal('deployModal');
+                AHPL.toast('Deploy berhasil! ' + d.deploy.extracted + ' file diextract.');
+                setTimeout(() => location.reload(), 1500);
             } else {
                 AHPL.toast(d.error || 'Deploy gagal', 'error');
             }
