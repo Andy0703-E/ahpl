@@ -369,13 +369,14 @@ function isProcessRunning($name) {
         return false;
     }
     if ($name === 'php-fpm') {
+        // Current request IS served by PHP-FPM
+        if (php_sapi_name() === 'fpm-fcgi') return true;
         $conn = @fsockopen('127.0.0.1', 9000, $e, $s, 1);
         if ($conn) { fclose($conn); return true; }
         $socks = [
             '/data/data/com.termux/files/usr/var/run/php-fpm.sock',
             '/var/run/php-fpm.sock',
             '/run/php-fpm.sock',
-            '/dev/shm/php-fpm.sock',
         ];
         foreach ($socks as $s) {
             if (file_exists($s)) return true;
