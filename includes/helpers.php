@@ -474,16 +474,26 @@ function deployZip($zipPath, $destDir) {
 
 // --- GitHub Deploy ---
 
+function findGit() {
+    $paths = ['/data/data/com.termux/files/usr/bin/git', '/usr/bin/git', '/bin/git', '/usr/local/bin/git'];
+    foreach ($paths as $p) { if (is_executable($p)) return $p; }
+    $which = @shell_exec("command -v git 2>/dev/null");
+    if ($which) return trim($which);
+    $which = @shell_exec("which git 2>/dev/null");
+    if ($which) return trim($which);
+    return null;
+}
+
 function deployGithub($repoUrl, $destDir) {
     if (!is_dir($destDir)) mkdir($destDir, 0755, true);
 
-    $gitCheck = @shell_exec("command -v git 2>/dev/null || where git 2>/dev/null");
-    if (empty($gitCheck)) {
-        return ['error' => 'Git tidak terinstall. Install git di Termux: pkg install git'];
+    $gitBin = findGit();
+    if (!$gitBin) {
+        return ['error' => 'Git tidak terinstall. Install git di Termux: pkg install git && pkg upgrade'];
     }
 
     $tmpDir = sys_get_temp_dir() . '/ahpl_gh_' . uniqid();
-    $cmd = "git clone --depth 1 " . escapeshellarg($repoUrl) . " " . escapeshellarg($tmpDir) . " 2>&1";
+    $cmd = escapeshellarg($gitBin) . " clone --depth 1 " . escapeshellarg($repoUrl) . " " . escapeshellarg($tmpDir) . " 2>&1";
     $output = @shell_exec($cmd);
 
     if (!is_dir($tmpDir)) {
