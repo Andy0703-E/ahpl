@@ -45,7 +45,7 @@ if (!empty($file)) {
     </div>
 </div>
 
-<div id="editor" style="height:calc(100vh - 180px);border:1px solid #ddd;border-radius:8px;overflow:hidden;"></div>
+<div id="editor" style="height:calc(100vh - 180px);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;"></div>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">

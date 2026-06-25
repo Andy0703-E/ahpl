@@ -43,7 +43,7 @@ $csrfToken = generateCSRFToken();
             <p class="sub">Android Hosting Panel Lite</p>
 
             <?php if ($error): ?>
-                <div style="background:#f8d7da;color:#721c24;padding:10px;border-radius:8px;margin-bottom:18px;font-size:13px;">
+                <div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:18px;font-size:13px;display:flex;align-items:center;gap:6px;">
                     <i class="fas fa-exclamation-circle"></i> <?= $error ?>
                 </div>
             <?php endif; ?>
@@ -60,7 +60,7 @@ $csrfToken = generateCSRFToken();
                 </div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-sign-in-alt"></i> Login</button>
             </form>
-            <p style="text-align:center;margin-top:16px;font-size:11px;color:#aaa;">AHPL v<?= APP_VERSION ?></p>
+            <p style="text-align:center;margin-top:16px;font-size:11px;color:var(--text-muted);">AHPL v<?= APP_VERSION ?></p>
         </div>
     </div>
 </body>

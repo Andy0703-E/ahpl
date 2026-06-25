@@ -8,7 +8,7 @@ $hasKey = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = '" . SQLit
 ?>
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-    <p style="color:#666;font-size:13px;">Kelola semua website yang dihosting</p>
+    <p style="color:var(--text-muted);font-size:13px;">Kelola semua website yang dihosting</p>
     <button class="btn btn-primary" onclick="document.getElementById('createModal').classList.add('active')">
         <i class="fas fa-plus"></i> Create Website
     </button>
@@ -26,13 +26,13 @@ $hasKey = $db->querySingle("SELECT COUNT(*) FROM settings WHERE key = '" . SQLit
                     <?php $siteSize = dirSize(WEBSITES_PATH . '/' . $site['folder']); ?>
                     <tr>
                         <td><strong><?= sanitize($site['name']) ?></strong></td>
-                        <td><code style="background:#f5f5f5;padding:2px 6px;border-radius:4px;font-size:12px;"><?= sanitize($site['folder']) ?></code></td>
+                        <td><code style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:12px;color:var(--text-muted);"><?= sanitize($site['folder']) ?></code></td>
                         <td>
-                            <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:<?= $status === 'online' ? 'var(--success)' : '#ccc' ?>;">
-                                <i class="fas fa-circle" style="font-size:8px;"></i> <?= ucfirst($status) ?>
+                            <span class="badge <?= $status === 'online' ? 'badge-success' : 'badge-warning' ?>">
+                                <i class="fas fa-circle" style="font-size:8px;margin-right:2px;"></i> <?= ucfirst($status) ?>
                             </span>
                         </td>
-                        <td style="font-size:12px;color:#666;"><?= formatSize($siteSize) ?></td>
+                        <td style="font-size:12px;color:var(--text-muted);"><?= formatSize($siteSize) ?></td>
                         <td><?= date('d M Y', strtotime($site['created_at'])) ?></td>
                         <td>
                             <a href="/websites/<?= urlencode($site['folder']) ?>/" target="_blank" class="btn btn-sm btn-outline" title="Visit"><i class="fas fa-external-link-alt"></i></a>
