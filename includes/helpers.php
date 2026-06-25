@@ -208,9 +208,12 @@ function countFiles($dir) {
 }
 
 function isPathSafe($path, $base) {
-    $real = realpath($path);
     $realBase = realpath($base);
-    if ($real === false || $realBase === false) return false;
+    if ($realBase === false) return false;
+    $real = realpath($path);
+    if ($real === false) {
+        $real = realpath(dirname($path)) . '/' . basename($path);
+    }
     return strpos($real, $realBase) === 0;
 }
 
@@ -473,6 +476,11 @@ function deployZip($zipPath, $destDir) {
 
 function deployGithub($repoUrl, $destDir) {
     if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+
+    $gitCheck = @shell_exec("command -v git 2>/dev/null || where git 2>/dev/null");
+    if (empty($gitCheck)) {
+        return ['error' => 'Git tidak terinstall. Install git di Termux: pkg install git'];
+    }
 
     $tmpDir = sys_get_temp_dir() . '/ahpl_gh_' . uniqid();
     $cmd = "git clone --depth 1 " . escapeshellarg($repoUrl) . " " . escapeshellarg($tmpDir) . " 2>&1";
