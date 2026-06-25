@@ -58,10 +58,12 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <script>
+var SERVICE_IDS = { nginx: 'nginx', 'php-fpm': 'php', cloudflared: 'tunnel' };
+
 function updateServiceStatus(s, running) {
-    const id = s.replace('-', '');
-    const el = document.getElementById(id + 'Status');
-    const label = document.getElementById(id + 'Label');
+    var id = SERVICE_IDS[s];
+    var el = document.getElementById(id + 'Status');
+    var label = document.getElementById(id + 'Label');
     if (!el || !label) return;
     el.className = 'service-status ' + (running ? 'running' : 'stopped');
     el.title = running ? 'Running' : 'Stopped';
@@ -70,16 +72,16 @@ function updateServiceStatus(s, running) {
 }
 
 function updateAllStatuses(services) {
-    ['nginx','php-fpm','cloudflared'].forEach(s => {
+    ['nginx','php-fpm','cloudflared'].forEach(function(s) {
         updateServiceStatus(s, services[s] === 'running');
     });
 }
 
 async function checkAllServices() {
     try {
-        const res = await fetch('/panel/api/services.php?action=status');
+        var res = await fetch('/panel/api/services.php?action=status');
         if (!res.ok) { updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false }); return; }
-        const data = await res.json();
+        var data = await res.json();
         if (data.services) updateAllStatuses(data.services);
     } catch(e) {
         updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false });
@@ -88,60 +90,65 @@ async function checkAllServices() {
 
 async function serviceAction(service, action) {
     try {
-        const res = await AHPL.api('/panel/api/services.php', {
-            method: 'POST',
-            body: JSON.stringify({ service, action })
+        var h = { 'Content-Type': 'application/json' };
+        if (window.__CSRF_TOKEN__) h['X-CSRF-TOKEN'] = window.__CSRF_TOKEN__;
+        var res = await fetch('/panel/api/services.php', {
+            method: 'POST', headers: h,
+            body: JSON.stringify({ service: service, action: action })
         });
-        if (res.success) {
-            AHPL.toast(service + ' ' + action + ' berhasil!');
+        var data = await res.json();
+        if (data.success) {
             if (service === 'cloudflared' && action === 'start') {
                 setTimeout(fetchTunnelUrl, 3000);
             }
             checkAllServices();
         } else {
-            AHPL.toast(res.error || 'Gagal', 'error');
+            alert('Gagal: ' + (data.error || 'unknown'));
         }
     } catch(e) {
-        AHPL.toast(e.message || 'Error', 'error');
+        alert('Error: ' + (e.message || 'unknown'));
     }
 }
 
 async function fetchTunnelUrl() {
     try {
-        const res = await fetch('/panel/api/tunnel-url.php');
+        var res = await fetch('/panel/api/tunnel-url.php');
         if (!res.ok) return;
-        const data = await res.json();
+        var data = await res.json();
         if (data.url) {
             document.getElementById('tunnelUrl').value = data.url;
+            var h = { 'Content-Type': 'application/json' };
+            if (window.__CSRF_TOKEN__) h['X-CSRF-TOKEN'] = window.__CSRF_TOKEN__;
             await fetch('/panel/api/settings.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+                method: 'POST', headers: h,
                 body: JSON.stringify({ action: 'save_tunnel_url', url: data.url })
             });
-            AHPL.toast('URL tunnel otomatis tersimpan!');
         }
-    } catch(e) { /* silent */ }
+    } catch(e) {}
 }
 
 async function saveTunnelUrl() {
-    const url = document.getElementById('tunnelUrl').value.trim();
-    if (!url) return AHPL.toast('Masukkan URL', 'error');
-    const res = await AHPL.api('/panel/api/settings.php', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_tunnel_url', url })
-    });
-    if (res.success) AHPL.toast('URL tunnel disimpan!');
+    var url = document.getElementById('tunnelUrl').value.trim();
+    if (!url) return alert('Masukkan URL');
+    var h = { 'Content-Type': 'application/json' };
+    if (window.__CSRF_TOKEN__) h['X-CSRF-TOKEN'] = window.__CSRF_TOKEN__;
+    try {
+        var res = await fetch('/panel/api/settings.php', {
+            method: 'POST', headers: h,
+            body: JSON.stringify({ action: 'save_tunnel_url', url: url })
+        });
+        var data = await res.json();
+        if (data.success) alert('URL tunnel disimpan!');
+    } catch(e) { alert('Gagal'); }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     checkAllServices();
     setInterval(checkAllServices, 10000);
-
-    // Load saved tunnel URL
     fetch('/panel/api/settings.php?action=get_tunnel_url')
-        .then(r => r.json())
-        .then(d => { if (d.url) document.getElementById('tunnelUrl').value = d.url; })
-        .catch(() => {});
+        .then(function(r) { return r.json(); })
+        .then(function(d) { if (d.url) document.getElementById('tunnelUrl').value = d.url; })
+        .catch(function() {});
 });
 </script>
 
