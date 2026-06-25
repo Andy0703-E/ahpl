@@ -361,10 +361,13 @@ function createBackup($type = 'websites') {
 // --- Service Manager ---
 
 function isProcessRunning($name) {
-    $out = @shell_exec("pidof $name 2>/dev/null");
+    $out = @shell_exec("pidof " . escapeshellarg($name) . " 2>/dev/null");
     if (!empty(trim($out ?? ''))) return true;
-    $out = @shell_exec("ps aux 2>/dev/null | grep -v grep | grep \"$name\"");
-    return !empty(trim($out ?? ''));
+    foreach (['ps aux', 'ps -A', 'ps'] as $cmd) {
+        $out = @shell_exec("$cmd 2>/dev/null | grep -v grep | grep " . escapeshellarg($name));
+        if (!empty(trim($out ?? ''))) return true;
+    }
+    return false;
 }
 
 function checkServiceStatus($service) {
@@ -382,14 +385,20 @@ function startService($service) {
             $out = @shell_exec('php-fpm 2>&1');
             break;
         case 'cloudflared':
-            $which = @shell_exec("command -v cloudflared 2>/dev/null || which cloudflared 2>/dev/null");
-            if (empty(trim($which ?? ''))) {
-                return ['error' => 'cloudflared tidak terinstall. Install: pkg install cloudflared'];
+            $cfBin = null;
+            $cfPaths = ['/data/data/com.termux/files/usr/bin/cloudflared', '/usr/bin/cloudflared', '/bin/cloudflared'];
+            foreach ($cfPaths as $p) { if (is_executable($p)) { $cfBin = $p; break; } }
+            if (!$cfBin) {
+                $which = @shell_exec("command -v cloudflared 2>/dev/null || which cloudflared 2>/dev/null");
+                if ($which) $cfBin = trim($which);
+            }
+            if (!$cfBin) {
+                return ['error' => 'cloudflared tidak ditemukan. Install: pkg install cloudflared'];
             }
             $tunnelUrl = getSetting(SETTING_TUNNEL_URL);
             $url = !empty($tunnelUrl) ? $tunnelUrl : 'http://localhost:8080';
             $logFile = sys_get_temp_dir() . '/cloudflared.log';
-            @shell_exec("nohup " . trim($which) . " tunnel --url $url > $logFile 2>&1 &");
+            @shell_exec("nohup " . escapeshellarg($cfBin) . " tunnel --url $url > $logFile 2>&1 &");
             sleep(2);
             if (!isProcessRunning('cloudflared')) {
                 $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Tidak ada output';
