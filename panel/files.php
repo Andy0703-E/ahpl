@@ -127,11 +127,6 @@ if (!isPathSafe($fullDir, $baseDir)) {
                 <p>Klik atau seret file ZIP ke sini</p>
             </div>
             <div id="deployProgress" style="margin-top:12px;"></div>
-            <div id="deployResult" style="margin-top:12px;display:none;">
-                <div style="padding:10px;background:#d4edda;color:#155724;border-radius:8px;font-size:13px;">
-                    <i class="fas fa-check-circle"></i> <span id="deployResultText"></span>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -261,51 +256,46 @@ document.getElementById('deployZone').addEventListener('click', function() {
 async function deployZipUpload(file) {
     if (!file || !file.name.endsWith('.zip')) return AHPL.toast('Pilih file ZIP', 'error');
     const prog = document.getElementById('deployProgress');
-    const result = document.getElementById('deployResult');
-    result.style.display = 'none';
+    prog.innerHTML = '<div style="margin-bottom:8px;"><strong>' + AHPL.escapeHtml(file.name) + '</strong><div class="progress-bar"><div class="progress-fill" style="width:0%" id="deployPbar"></div></div><div style="font-size:11px;color:#888;margin-top:2px;" id="deployPct">0%</div></div><div style="font-size:12px;color:#888;margin-top:6px;" id="deployStatus">Uploading...</div>';
 
     const fd = new FormData();
-    fd.append('file', file);
-    fd.append('dir', currentDir);
-
-    prog.innerHTML = '<div style="margin-bottom:8px;"><strong>' + AHPL.escapeHtml(file.name) + '</strong><div class="progress-bar"><div class="progress-fill" style="width:0%" id="deployPbar"></div></div><div style="font-size:11px;color:#888;margin-top:2px;" id="deployPct">0%</div></div>';
+    fd.append('zip_file', file);
+    fd.append('folder', currentDir.replace(/^\//, ''));
+    fd.append('<?= CSRF_TOKEN_NAME ?>', window.__CSRF_TOKEN__);
 
     const xhr = new XMLHttpRequest();
     xhr.upload.onprogress = e => {
         if (e.lengthComputable) {
-            const pct = Math.round(e.loaded/e.total*100);
+            const pct = Math.round(e.loaded / e.total * 100);
             document.getElementById('deployPbar').style.width = pct + '%';
             document.getElementById('deployPct').textContent = pct + '%';
         }
     };
 
-    xhr.onload = function() {
+    xhr.onload = function () {
         let data;
-        try { data = JSON.parse(xhr.responseText); } catch(e) { AHPL.toast('Upload gagal', 'error'); return; }
-        if (!data.success) { AHPL.toast(data.error || 'Upload gagal', 'error'); return; }
-
-        prog.innerHTML = '<div style="margin-bottom:8px;"><i class="fas fa-spinner fa-spin"></i> Deploying...</div>';
-
-        const zipPath = '<?= addslashes(WEBSITES_PATH) ?>/' + currentDir.replace(/^\//,'') + '/' + file.name;
-        fetch('/panel/api/deploy.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'website', folder: currentDir.replace(/^\//,''), zipPath: zipPath })
-        })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
+        try { data = JSON.parse(xhr.responseText); } catch (e) {
+            AHPL.toast('Gagal parsing response', 'error');
+            document.getElementById('deployStatus').textContent = 'Error: response invalid';
+            return;
+        }
+        if (data.success) {
+            document.getElementById('deployStatus').textContent = 'Extracting...';
+            setTimeout(() => {
                 closeModal('deployModal');
-                AHPL.toast('Deploy berhasil! ' + d.deploy.extracted + ' file diextract.');
+                AHPL.toast('Deploy berhasil! ' + data.deploy.extracted + ' file diextract.');
                 setTimeout(() => location.reload(), 1500);
-            } else {
-                AHPL.toast(d.error || 'Deploy gagal', 'error');
-            }
-        })
-        .catch(e => AHPL.toast('Deploy gagal: ' + (e.message || 'Unknown'), 'error'));
+            }, 300);
+        } else {
+            AHPL.toast(data.error || 'Deploy gagal', 'error');
+            document.getElementById('deployStatus').textContent = 'Error: ' + (data.error || 'gagal');
+        }
     };
-    xhr.onerror = () => AHPL.toast('Upload gagal', 'error');
-    xhr.open('POST', '/panel/api/upload.php');
+    xhr.onerror = () => {
+        AHPL.toast('Upload gagal (koneksi)', 'error');
+        document.getElementById('deployStatus').textContent = 'Error: koneksi gagal';
+    };
+    xhr.open('POST', '/panel/api/deploy.php');
     xhr.send(fd);
 }
 
