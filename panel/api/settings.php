@@ -26,4 +26,12 @@ if ($action === 'change_password') {
     jsonResponse(['success' => true]);
 }
 
+if ($action === 'save_tunnel_url') {
+    $url = trim($input['url'] ?? '');
+    if (empty($url)) jsonResponse(['error' => 'URL wajib diisi'], 400);
+    setSetting(SETTING_TUNNEL_URL, $url);
+    logAction('tunnel_url', "URL tunnel disimpan: $url");
+    jsonResponse(['success' => true]);
+}
+
 jsonResponse(['error' => 'Invalid'], 400);

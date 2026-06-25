@@ -1,10 +1,11 @@
 <?php
 define('APP_NAME', 'AHPL');
-define('APP_VERSION', '1.1.0');
+define('APP_VERSION', '1.2.0');
 define('BASE_PATH', dirname(__DIR__));
 
 // Settings keys
 define('SETTING_CEREBRAS_KEY', 'cerebras_key');
+define('SETTING_TUNNEL_URL', 'tunnel_url');
 
 // Security
 define('CSRF_TOKEN_NAME', 'ahpl_csrf_token');
@@ -12,6 +13,7 @@ define('RATE_LIMIT_WINDOW', 300); // 5 minutes
 define('RATE_LIMIT_MAX_ATTEMPTS', 5);
 define('MAX_ZIP_EXTRACT_SIZE', 500 * 1024 * 1024); // 500MB
 define('MAX_ZIP_DEPTH', 5);
+define('SESSION_TIMEOUT', 1800); // 30 minutes
 
 // Load override path untuk Termux dulu (sebelum define default)
 $localConfig = __DIR__ . '/local.php';

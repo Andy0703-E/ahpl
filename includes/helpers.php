@@ -37,7 +37,13 @@ function requireCSRF() {
 // --- Auth ---
 
 function isLoggedIn() {
-    return isset($_SESSION['user_id']);
+    if (!isset($_SESSION['user_id'])) return false;
+    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > SESSION_TIMEOUT)) {
+        session_destroy();
+        return false;
+    }
+    $_SESSION['last_activity'] = time();
+    return true;
 }
 
 function requireLogin() {
@@ -82,7 +88,8 @@ function login($username, $password) {
         resetRateLimit($identifier);
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
-        logAction('login', $username);
+        $_SESSION['last_activity'] = time();
+        logAction('login', $username . ' from ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
         return true;
     }
 
@@ -272,4 +279,226 @@ function appLog($message, $level = 'INFO') {
     $file = LOGS_PATH . '/app.log';
     $line = date('Y-m-d H:i:s') . " [$level] $message" . PHP_EOL;
     @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
+}
+
+// --- Website Status ---
+
+function websiteStatus($folder) {
+    $dir = WEBSITES_PATH . '/' . $folder;
+    if (!is_dir($dir)) return 'offline';
+    foreach (['index.html', 'index.php', 'index.htm'] as $f) {
+        if (file_exists($dir . '/' . $f)) return 'online';
+    }
+    return 'offline';
+}
+
+// --- Storage ---
+
+function dirSize($dir) {
+    $size = 0;
+    if (!is_dir($dir)) return 0;
+    $scan = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS));
+    foreach ($scan as $file) {
+        if ($file->isFile()) $size += $file->getSize();
+    }
+    return $size;
+}
+
+function websiteStorage() {
+    $db = getDB();
+    $sites = $db->query("SELECT id, name, folder FROM websites ORDER BY name");
+    $result = [];
+    while ($site = $sites->fetchArray(SQLITE3_ASSOC)) {
+        $siteDir = WEBSITES_PATH . '/' . $site['folder'];
+        $result[] = [
+            'id' => $site['id'],
+            'name' => $site['name'],
+            'folder' => $site['folder'],
+            'size' => dirSize($siteDir),
+            'files' => countFiles($siteDir),
+        ];
+    }
+    return $result;
+}
+
+// --- Backup ---
+
+function createBackup($type = 'websites') {
+    if (!is_dir(BACKUPS_PATH)) mkdir(BACKUPS_PATH, 0755, true);
+    $date = date('Ymd_His');
+    $filename = "backup_{$type}_{$date}.zip";
+    $filepath = BACKUPS_PATH . '/' . $filename;
+
+    $zip = new ZipArchive();
+    if ($zip->open($filepath, ZipArchive::CREATE) !== true) {
+        return ['error' => 'Gagal membuat ZIP'];
+    }
+
+    if ($type === 'websites' || $type === 'full') {
+        $sites = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(WEBSITES_PATH, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        foreach ($sites as $file) {
+            $localPath = 'websites/' . substr($file->getPathname(), strlen(WEBSITES_PATH) + 1);
+            $zip->addFile($file->getPathname(), $localPath);
+        }
+    }
+
+    if ($type === 'database' || $type === 'full') {
+        if (file_exists(DB_FILE)) {
+            $zip->addFile(DB_FILE, 'database/ahpl.db');
+        }
+    }
+
+    $zip->close();
+    return ['success' => true, 'file' => $filename, 'size' => filesize($filepath)];
+}
+
+// --- Service Manager ---
+
+function checkServiceStatus($service) {
+    if (PHP_OS_FAMILY === 'Windows') return 'unknown';
+    switch ($service) {
+        case 'nginx':
+            $out = @shell_exec('pgrep -x nginx 2>/dev/null');
+            return !empty($out) ? 'running' : 'stopped';
+        case 'php-fpm':
+            $out = @shell_exec('pgrep -x php-fpm 2>/dev/null');
+            return !empty($out) ? 'running' : 'stopped';
+        case 'cloudflared':
+            $out = @shell_exec('pgrep -x cloudflared 2>/dev/null');
+            return !empty($out) ? 'running' : 'stopped';
+        default:
+            return 'unknown';
+    }
+}
+
+function startService($service) {
+    if (checkServiceStatus($service) === 'running') return ['error' => "$service sudah running"];
+    switch ($service) {
+        case 'nginx':
+            $out = @shell_exec('nginx 2>&1');
+            break;
+        case 'php-fpm':
+            $out = @shell_exec('php-fpm 2>&1');
+            break;
+        case 'cloudflared':
+            $tunnelUrl = getSetting(SETTING_TUNNEL_URL);
+            $url = !empty($tunnelUrl) ? $tunnelUrl : 'http://localhost:8080';
+            $out = @shell_exec("nohup cloudflared tunnel --url $url > /dev/null 2>&1 &");
+            break;
+        default:
+            return ['error' => 'Service tidak dikenal'];
+    }
+    sleep(1);
+    $status = checkServiceStatus($service);
+    return $status === 'running'
+        ? ['success' => true, 'status' => $status]
+        : ['error' => "Gagal start $service", 'output' => $out ?? ''];
+}
+
+function stopService($service) {
+    if (checkServiceStatus($service) === 'stopped') return ['error' => "$service sudah stop"];
+    switch ($service) {
+        case 'nginx':
+            $out = @shell_exec('nginx -s stop 2>&1');
+            break;
+        case 'php-fpm':
+            $out = @shell_exec('pkill php-fpm 2>&1');
+            break;
+        case 'cloudflared':
+            $out = @shell_exec('pkill cloudflared 2>&1');
+            break;
+        default:
+            return ['error' => 'Service tidak dikenal'];
+    }
+    sleep(1);
+    $status = checkServiceStatus($service);
+    return $status === 'stopped'
+        ? ['success' => true, 'status' => $status]
+        : ['error' => "Gagal stop $service", 'output' => $out ?? ''];
+}
+
+// --- ZIP Deploy ---
+
+function deployZip($zipPath, $destDir) {
+    if (!file_exists($zipPath)) return ['error' => 'File ZIP tidak ditemukan'];
+    if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath) !== true) return ['error' => 'Gagal buka ZIP'];
+
+    $totalFiles = $zip->numFiles;
+    $extracted = 0;
+
+    for ($i = 0; $i < $totalFiles; $i++) {
+        $entryName = $zip->getNameIndex($i);
+        if (strpos($entryName, '__MACOSX') === 0) continue;
+        if (strpos($entryName, '.') === 0) continue;
+
+        $destPath = $destDir . '/' . $entryName;
+        if (substr($entryName, -1) === '/') {
+            if (!is_dir($destPath)) mkdir($destPath, 0755, true);
+        } else {
+            $dirName = dirname($destPath);
+            if (!is_dir($dirName)) mkdir($dirName, 0755, true);
+            copy('zip://' . $zipPath . '#' . $entryName, $destPath);
+            $extracted++;
+        }
+    }
+
+    $zip->close();
+    return ['success' => true, 'extracted' => $extracted];
+}
+
+// --- GitHub Deploy ---
+
+function deployGithub($repoUrl, $destDir) {
+    if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+
+    $tmpDir = sys_get_temp_dir() . '/ahpl_gh_' . uniqid();
+    $cmd = "git clone --depth 1 " . escapeshellarg($repoUrl) . " " . escapeshellarg($tmpDir) . " 2>&1";
+    $output = @shell_exec($cmd);
+
+    if (!is_dir($tmpDir)) {
+        return ['error' => 'Gagal clone repository. Pastikan URL benar dan git terinstall.'];
+    }
+
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($tmpDir, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::LEAVES_ONLY
+    );
+
+    $copied = 0;
+    foreach ($it as $file) {
+        if ($file->getFilename() === '.git') continue;
+        $relPath = substr($file->getPathname(), strlen($tmpDir) + 1);
+        $dest = $destDir . '/' . $relPath;
+        $dir = dirname($dest);
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        copy($file->getPathname(), $dest);
+        $copied++;
+    }
+
+    // Cleanup
+    $rmCmd = PHP_OS_FAMILY === 'Windows' ? "rmdir /s /q " : "rm -rf ";
+    @shell_exec($rmCmd . escapeshellarg($tmpDir));
+
+    return ['success' => true, 'copied' => $copied];
+}
+
+// --- Login History ---
+
+function getLoginHistory($limit = 20) {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT * FROM logs WHERE action = 'login' ORDER BY id DESC LIMIT :limit");
+    $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+    $result = $stmt->execute();
+    $logs = [];
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $logs[] = $row;
+    }
+    $result->finalize();
+    return $logs;
 }

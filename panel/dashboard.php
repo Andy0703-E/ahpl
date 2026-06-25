@@ -11,6 +11,8 @@ $recentLogs = $db->query("SELECT * FROM logs ORDER BY id DESC LIMIT 8");
 
 $diskPct = $server['disk_total'] > 0 ? round(($server['disk_used'] / $server['disk_total']) * 100) : 0;
 $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_total']) * 100) : 0;
+
+$websites = $db->query("SELECT name, folder FROM websites ORDER BY id DESC");
 ?>
 
 <div class="stats-grid">
@@ -77,6 +79,28 @@ $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_t
                 </div>
             <?php endwhile; ?>
         </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:18px;">
+    <div class="card-header"><h3><i class="fas fa-globe"></i> Website Status</h3></div>
+    <div class="card-body">
+        <?php $hasAny = false; while ($site = $websites->fetchArray(SQLITE3_ASSOC)): $hasAny = true; ?>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5;">
+                <div>
+                    <strong><?= sanitize($site['name']) ?></strong>
+                    <code style="font-size:11px;margin-left:8px;color:#888;">/<?= sanitize($site['folder']) ?></code>
+                </div>
+                <div>
+                    <?php $status = websiteStatus($site['folder']); ?>
+                    <span style="display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:<?= $status === 'online' ? 'var(--success)' : '#ccc' ?>;">
+                        <i class="fas fa-circle" style="font-size:10px;"></i> <?= ucfirst($status) ?>
+                    </span>
+                </div>
+            </div>
+        <?php endwhile; if (!$hasAny): ?>
+            <p style="color:#888;font-size:13px;text-align:center;padding:18px;">Belum ada website. <a href="/panel/websites.php">Buat website</a></p>
+        <?php endif; ?>
     </div>
 </div>
 

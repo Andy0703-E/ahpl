@@ -7,6 +7,12 @@ const AHPL = {
         setTimeout(() => el.remove(), 3000);
     },
 
+    escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    },
+
     async api(url, opts = {}) {
         const headers = { 'Content-Type': 'application/json', ...opts.headers };
         if (window.__CSRF_TOKEN__ && !headers['X-CSRF-TOKEN']) {

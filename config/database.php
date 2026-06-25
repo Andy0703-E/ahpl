@@ -49,15 +49,20 @@ function initDatabase() {
 
     // Migration: add password_changed column if missing (v1 -> v1.1)
     if ($dbVersion < 1) {
-        $cols = [];
-        $res = $db->query("PRAGMA table_info(users)");
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-            $cols[] = $row['name'];
-        }
+        $cols = getTableColumns($db, 'users');
         if (!in_array('password_changed', $cols)) {
             $db->exec("ALTER TABLE users ADD COLUMN password_changed INTEGER DEFAULT 0");
         }
         $db->exec("PRAGMA user_version = 1");
+    }
+
+    // Migration: add ip_address column to logs (v1.1 -> v1.2)
+    if ($dbVersion < 2) {
+        $cols = getTableColumns($db, 'logs');
+        if (!in_array('ip_address', $cols)) {
+            $db->exec("ALTER TABLE logs ADD COLUMN ip_address TEXT DEFAULT ''");
+        }
+        $db->exec("PRAGMA user_version = 2");
     }
 
     // Seed default admin
@@ -71,10 +76,23 @@ function initDatabase() {
     }
 }
 
-function logAction($action, $details = '') {
+function getTableColumns($db, $table) {
+    $cols = [];
+    $res = $db->query("PRAGMA table_info($table)");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $cols[] = $row['name'];
+    }
+    return $cols;
+}
+
+function logAction($action, $details = '', $ipAddress = '') {
     $db = getDB();
-    $stmt = $db->prepare("INSERT INTO logs (action, details) VALUES (:action, :details)");
+    if (empty($ipAddress)) {
+        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
+    }
+    $stmt = $db->prepare("INSERT INTO logs (action, details, ip_address) VALUES (:action, :details, :ip)");
     $stmt->bindValue(':action', $action, SQLITE3_TEXT);
     $stmt->bindValue(':details', $details, SQLITE3_TEXT);
+    $stmt->bindValue(':ip', $ipAddress, SQLITE3_TEXT);
     $stmt->execute();
 }
