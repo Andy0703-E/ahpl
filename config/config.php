@@ -33,6 +33,11 @@ if (!defined('DB_FILE')) define('DB_FILE', DATABASE_PATH . '/ahpl.db');
 
 define('MAX_UPLOAD_SIZE', 100 * 1024 * 1024);
 
+// Bypass PHP default upload limits untuk Termux
+@ini_set('upload_max_filesize', '100M');
+@ini_set('post_max_size', '105M');
+@ini_set('max_execution_time', '120');
+
 session_start();
 
 require_once BASE_PATH . '/config/database.php';
