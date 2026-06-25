@@ -422,8 +422,8 @@ function startService($service) {
             }
             $tunnelUrl = getSetting(SETTING_TUNNEL_URL);
             $url = !empty($tunnelUrl) ? $tunnelUrl : 'http://localhost:8080';
-            $logFile = sys_get_temp_dir() . '/cloudflared.log';
-            @shell_exec("nohup " . escapeshellarg($cfBin) . " tunnel --url $url > $logFile 2>&1 &");
+            $logFile = TUNNEL_LOG;
+            @shell_exec("nohup " . escapeshellarg($cfBin) . " tunnel --url $url > " . escapeshellarg($logFile) . " 2>&1 &");
             sleep(2);
             if (!isProcessRunning('cloudflared')) {
                 $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Tidak ada output';

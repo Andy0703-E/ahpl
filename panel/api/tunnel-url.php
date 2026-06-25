@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 
-$logFile = sys_get_temp_dir() . '/cloudflared.log';
+$logFile = TUNNEL_LOG;
 $url = '';
 
 if (file_exists($logFile)) {

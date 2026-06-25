@@ -32,6 +32,7 @@ if (!defined('LOGS_PATH')) define('LOGS_PATH', SERVER_PATH . '/logs');
 if (!defined('DB_FILE')) define('DB_FILE', DATABASE_PATH . '/ahpl.db');
 
 define('MAX_UPLOAD_SIZE', 100 * 1024 * 1024);
+define('TUNNEL_LOG', sys_get_temp_dir() . '/cloudflared.log');
 
 // Bypass PHP default upload limits untuk Termux
 @ini_set('upload_max_filesize', '100M');
