@@ -128,12 +128,6 @@ async function fetchTunnelUrl() {
         var data = await res.json();
         if (data.url) {
             document.getElementById('tunnelUrl').value = data.url;
-            var h = { 'Content-Type': 'application/json' };
-            if (window.__CSRF_TOKEN__) h['X-CSRF-TOKEN'] = window.__CSRF_TOKEN__;
-            await fetch('/panel/api/settings.php', {
-                method: 'POST', headers: h,
-                body: JSON.stringify({ action: 'save_tunnel_url', url: data.url })
-            });
             updateTunnelQR(data.url);
             return true;
         }
