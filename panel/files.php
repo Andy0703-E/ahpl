@@ -283,35 +283,57 @@ async function doZipUpload(files) {
         fd.append('file', file);
         fd.append('dir', currentDir);
         const fileId = 'zp-' + file.name.replace(/[^a-zA-Z0-9]/g, '_');
-        prog.innerHTML += '<div style="margin-bottom:8px;"><strong>' + AHPL.escapeHtml(file.name) + '</strong><div class="progress-bar"><div class="progress-fill" style="width:0%" id="' + fileId + '"></div></div><div style="font-size:11px;color:#888;margin-top:2px;" id="' + fileId + '-pct">0%</div></div>';
+        prog.innerHTML += '<div style="margin-bottom:8px;padding:10px;background:var(--bg);border-radius:8px;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+            + '<strong>' + AHPL.escapeHtml(file.name) + '</strong>'
+            + '<span style="font-size:11px;color:#888;" id="' + fileId + '-status">Uploading...</span>'
+            + '</div>'
+            + '<div class="progress-bar"><div class="progress-fill" style="width:0%" id="' + fileId + '"></div></div>'
+            + '<div style="font-size:11px;color:#888;margin-top:2px;" id="' + fileId + '-pct">0%</div>'
+            + '<div style="font-size:12px;margin-top:6px;display:none;" id="' + fileId + '-result"></div>'
+            + '</div>';
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = function(e) {
             if (e.lengthComputable) {
                 const pct = Math.round(e.loaded / e.total * 100);
                 const el = document.getElementById(fileId);
                 const pctEl = document.getElementById(fileId + '-pct');
+                const statusEl = document.getElementById(fileId + '-status');
                 if (el) el.style.width = pct + '%';
                 if (pctEl) pctEl.textContent = pct + '%';
+                if (statusEl && pct === 100) statusEl.textContent = 'Mengekstrak...';
             }
         };
         xhr.onload = function() {
+            const resultEl = document.getElementById(fileId + '-result');
+            const statusEl = document.getElementById(fileId + '-status');
             try {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
-                    AHPL.toast(AHPL.escapeHtml(file.name) + ' — ' + data.extracted + ' file diekstrak');
+                    if (statusEl) statusEl.textContent = 'Selesai';
+                    if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--success);"><i class="fas fa-check-circle"></i> ' + data.extracted + ' file diekstrak</span>'; }
                 } else {
-                    AHPL.toast(data.error || 'Gagal', 'error');
+                    if (statusEl) statusEl.textContent = 'Gagal';
+                    if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(data.error || 'Gagal') + '</span>'; }
                 }
             } catch(e) {
-                AHPL.toast('Gagal proses ZIP', 'error');
+                if (statusEl) statusEl.textContent = 'Error';
+                if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> Server error: ' + AHPL.escapeHtml(xhr.responseText.substring(0,200)) + '</span>'; }
             }
             done++;
-            if (done >= pending) setTimeout(function() { location.reload(); }, 600);
+            if (done >= pending) {
+                var allOk = document.querySelectorAll('#zipProgress [id$="-result"] .fa-check-circle').length === pending;
+                setTimeout(function() { closeModal('zipModal'); if (allOk) location.reload(); }, allOk ? 1200 : 3000);
+            }
         };
         xhr.onerror = function() {
+            const resultEl = document.getElementById(fileId + '-result');
+            const statusEl = document.getElementById(fileId + '-status');
+            if (statusEl) statusEl.textContent = 'Gagal';
+            if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> Network error</span>'; }
             AHPL.toast(AHPL.escapeHtml(file.name) + ' gagal', 'error');
             done++;
-            if (done >= pending) setTimeout(function() { location.reload(); }, 600);
+            if (done >= pending) setTimeout(function() { closeModal('zipModal'); location.reload(); }, 3000);
         };
         xhr.open('POST', '/panel/api/zip.php');
         xhr.send(fd);

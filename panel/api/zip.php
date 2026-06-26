@@ -6,6 +6,12 @@ header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 
+if (!class_exists('ZipArchive')) {
+    jsonResponse(['error' => 'ZipArchive tidak tersedia. Install php-zip di Termux: pkg install php-zip'], 500);
+}
+
+@set_time_limit(300);
+
 $base = WEBSITES_PATH;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -37,20 +43,24 @@ if (!empty($_FILES)) {
         jsonResponse(['error' => 'Gagal menyimpan file'], 500);
     }
 
-    $zip = new ZipArchive();
-    $code = $zip->open($dest);
-    if ($code !== true) {
-        unlink($dest);
-        jsonResponse(['error' => 'Gagal membuka ZIP (code: ' . $code . ')'], 400);
+    try {
+        $zip = new ZipArchive();
+        $code = $zip->open($dest);
+        if ($code !== true) {
+            unlink($dest);
+            jsonResponse(['error' => 'Gagal membuka ZIP (code: ' . $code . ')'], 400);
+        }
+        $totalFiles = $zip->numFiles;
+        $extractOk = $zip->extractTo($fullDir);
+        $zip->close();
+    } catch (Throwable $e) {
+        if (file_exists($dest)) unlink($dest);
+        jsonResponse(['error' => 'Gagal mengekstrak: ' . $e->getMessage()], 500);
     }
-
-    $totalFiles = $zip->numFiles;
-    $extractOk = $zip->extractTo($fullDir);
-    $zip->close();
 
     if (!$extractOk) {
         unlink($dest);
-        jsonResponse(['error' => 'Gagal mengekstrak ZIP'], 500);
+        jsonResponse(['error' => 'Gagal mengekstrak ZIP (mungkin file corrupt)'], 500);
     }
 
     logAction('zip_upload', "$name -> $dir (" . $totalFiles . " files)");
@@ -72,18 +82,22 @@ if ($action === 'extract') {
         jsonResponse(['error' => 'Bukan file ZIP'], 400);
     }
 
-    $zip = new ZipArchive();
-    $code = $zip->open($fullPath);
-    if ($code !== true) jsonResponse(['error' => 'Gagal membuka ZIP (code: ' . $code . ')'], 400);
+    try {
+        $zip = new ZipArchive();
+        $code = $zip->open($fullPath);
+        if ($code !== true) jsonResponse(['error' => 'Gagal membuka ZIP (code: ' . $code . ')'], 400);
 
-    $totalFiles = $zip->numFiles;
-    $destDir = dirname($fullPath);
+        $totalFiles = $zip->numFiles;
+        $destDir = dirname($fullPath);
 
-    if (!$zip->extractTo($destDir)) {
+        if (!$zip->extractTo($destDir)) {
+            $zip->close();
+            jsonResponse(['error' => 'Gagal mengekstrak ZIP'], 500);
+        }
         $zip->close();
-        jsonResponse(['error' => 'Gagal mengekstrak ZIP'], 500);
+    } catch (Throwable $e) {
+        jsonResponse(['error' => 'Gagal mengekstrak: ' . $e->getMessage()], 500);
     }
-    $zip->close();
 
     logAction('zip_extract', basename($fullPath) . ' -> ' . dirname($path));
     jsonResponse(['success' => true, 'extracted' => $totalFiles]);
