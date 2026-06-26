@@ -292,12 +292,13 @@ function closeDeleteModal() { document.getElementById('deleteModal').classList.r
 
 async function confirmDelete() {
     if (!deletingRow) return;
+    var tbl = deletingRow.table;
     try {
         var res = await AHPL.api('/panel/api/database.php', {
             method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'delete_row', table: deletingRow.table, id_column: deletingRow.idCol, id_value: deletingRow.idVal })
+            body: JSON.stringify({ action: 'delete_row', table: tbl, id_column: deletingRow.idCol, id_value: deletingRow.idVal })
         });
-        if (res.success) { AHPL.toast('Row dihapus'); closeDeleteModal(); viewTable(deletingRow.table, currentPage); }
+        if (res.success) { AHPL.toast('Row dihapus'); closeDeleteModal(); viewTable(tbl, currentPage); }
     } catch (e) { AHPL.toast(e.message, 'error'); }
 }
 
