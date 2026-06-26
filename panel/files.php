@@ -311,7 +311,11 @@ async function doZipUpload(files) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     if (statusEl) statusEl.textContent = 'Selesai';
-                    if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--success);"><i class="fas fa-check-circle"></i> ' + data.extracted + ' file diekstrak</span>'; }
+                    var extra = '';
+                    if (data.registered && data.registered.length) {
+                        extra = '<br><span style="color:var(--info);font-size:11px;"><i class="fas fa-globe"></i> Website terdaftar: ' + data.registered.join(', ') + '</span>';
+                    }
+                    if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--success);"><i class="fas fa-check-circle"></i> ' + data.extracted + ' file diekstrak</span>' + extra; }
                 } else {
                     if (statusEl) statusEl.textContent = 'Gagal';
                     if (resultEl) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(data.error || 'Gagal') + '</span>'; }
@@ -351,7 +355,9 @@ async function extractZip(path) {
             body: JSON.stringify({ action: 'extract', path: path })
         });
         if (res.success) {
-            AHPL.toast(res.extracted + ' file diekstrak');
+            var msg = res.extracted + ' file diekstrak';
+            if (res.registered && res.registered.length) msg += '. Website: ' + res.registered.join(', ');
+            AHPL.toast(msg);
             setTimeout(function() { location.reload(); }, 500);
         }
     } catch(e) {
