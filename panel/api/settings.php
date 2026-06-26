@@ -6,13 +6,7 @@ header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 
-// GET: read-only
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $action = $_GET['action'] ?? '';
-    if ($action === 'get_tunnel_url') {
-        $url = getSetting(SETTING_CLOUDFLARE_URL);
-        jsonResponse(['url' => $url ?? '']);
-    }
     jsonResponse(['error' => 'Invalid'], 400);
 }
 
@@ -34,14 +28,6 @@ if ($action === 'change_password') {
     if (strlen($newPassword) < 6) jsonResponse(['error' => 'Password minimal 6 karakter'], 400);
     changePassword($_SESSION['user_id'], $newPassword);
     logAction('change_password', $_SESSION['username'] ?? '');
-    jsonResponse(['success' => true]);
-}
-
-if ($action === 'save_tunnel_url') {
-    $url = trim($input['url'] ?? '');
-    if (empty($url)) jsonResponse(['error' => 'URL wajib diisi'], 400);
-    setSetting(SETTING_CLOUDFLARE_URL, $url);
-    logAction('tunnel_url', "URL tunnel disimpan: $url");
     jsonResponse(['success' => true]);
 }
 
