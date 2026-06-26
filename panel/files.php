@@ -32,6 +32,7 @@ if (!isPathSafe($fullDir, $baseDir)) {
         </div>
         <button class="btn btn-sm btn-primary" onclick="showUpload()"><i class="fas fa-upload"></i> Upload</button>
         <button class="btn btn-sm btn-success" onclick="showNewFolder()"><i class="fas fa-folder-plus"></i> Folder</button>
+        <button class="btn btn-sm btn-warning" onclick="showZipUpload()"><i class="fas fa-file-zipper"></i> Upload ZIP</button>
     </div>
 
     <ul class="fm-list">
@@ -89,6 +90,9 @@ if (!isPathSafe($fullDir, $baseDir)) {
                             <?php if (in_array($item['ext'], ['html','htm','css','js','php','json','txt'])): ?>
                                 <a href="/panel/editor.php?file=<?= urlencode($item['path']) ?>" class="btn-icon" title="Edit"><i class="fas fa-pen"></i></a>
                             <?php endif; ?>
+                            <?php if ($item['ext'] === 'zip'): ?>
+                                <button class="btn-icon" onclick="extractZip('<?= sanitize($item['path']) ?>')" title="Extract ZIP"><i class="fas fa-file-zipper"></i></button>
+                            <?php endif; ?>
                         <?php endif; ?>
                         <button class="btn-icon" onclick="renameItem('<?= sanitize($item['path']) ?>','<?= sanitize($item['name']) ?>')" title="Rename"><i class="fas fa-i-cursor"></i></button>
                         <button class="btn-icon del" onclick="deleteItem('<?= sanitize($item['path']) ?>','<?= sanitize($item['name']) ?>')" title="Delete"><i class="fas fa-trash"></i></button>
@@ -113,7 +117,19 @@ if (!isPathSafe($fullDir, $baseDir)) {
     </div>
 </div>
 
-
+<div class="modal-overlay" id="zipModal">
+    <div class="modal">
+        <div class="modal-header"><h3><i class="fas fa-file-zipper"></i> Upload & Extract ZIP</h3><button class="modal-close" onclick="closeModal('zipModal')">&times;</button></div>
+        <div class="modal-body">
+            <div class="upload-zone" id="zipUploadZone">
+                <div class="icon"><i class="fas fa-file-archive"></i></div>
+                <p>Klik atau seret file ZIP ke sini</p>
+                <p style="font-size:11px;color:#aaa;margin-top:6px;">Max: <?= formatSize(MAX_ZIP_EXTRACT_SIZE) ?></p>
+            </div>
+            <div id="zipProgress" style="margin-top:14px;"></div>
+        </div>
+    </div>
+</div>
 
 <div class="modal-overlay" id="folderModal">
     <div class="modal">
@@ -223,6 +239,84 @@ async function doUpload(files) {
         xhr.send(fd);
     }
     setTimeout(() => location.reload(), 2000);
+}
+
+// ZIP Upload
+function showZipUpload() { document.getElementById('zipModal').classList.add('active'); }
+
+document.getElementById('zipUploadZone').addEventListener('click', function() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.zip';
+    inp.onchange = () => doZipUpload(inp.files);
+    inp.click();
+});
+
+['dragenter','dragover'].forEach(function(e) {
+    document.getElementById('zipUploadZone').addEventListener(e, function(ev) { ev.preventDefault(); document.getElementById('zipUploadZone').classList.add('dragover'); });
+});
+['dragleave','drop'].forEach(function(e) {
+    document.getElementById('zipUploadZone').addEventListener(e, function(ev) { ev.preventDefault(); document.getElementById('zipUploadZone').classList.remove('dragover'); });
+});
+document.getElementById('zipUploadZone').addEventListener('drop', function(ev) { doZipUpload(ev.dataTransfer.files); });
+
+async function doZipUpload(files) {
+    const prog = document.getElementById('zipProgress');
+    for (const file of files) {
+        if (!file.name.toLowerCase().endsWith('.zip')) {
+            AHPL.toast(AHPL.escapeHtml(file.name) + ' bukan file ZIP', 'error');
+            continue;
+        }
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('dir', currentDir);
+        const fileId = 'zp-' + file.name.replace(/[^a-zA-Z0-9]/g, '_');
+        prog.innerHTML += '<div style="margin-bottom:8px;"><strong>' + AHPL.escapeHtml(file.name) + '</strong><div class="progress-bar"><div class="progress-fill" style="width:0%" id="' + fileId + '"></div></div><div style="font-size:11px;color:#888;margin-top:2px;" id="' + fileId + '-pct">0%</div></div>';
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const pct = Math.round(e.loaded / e.total * 100);
+                const el = document.getElementById(fileId);
+                const pctEl = document.getElementById(fileId + '-pct');
+                if (el) el.style.width = pct + '%';
+                if (pctEl) pctEl.textContent = pct + '%';
+            }
+        };
+        xhr.onload = function() {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    AHPL.toast(AHPL.escapeHtml(file.name) + ' — ' + data.extracted + ' file diekstrak');
+                } else {
+                    AHPL.toast(data.error || 'Gagal', 'error');
+                }
+            } catch(e) {
+                AHPL.toast('Gagal proses ZIP', 'error');
+            }
+        };
+        xhr.onerror = function() { AHPL.toast(AHPL.escapeHtml(file.name) + ' gagal', 'error'); };
+        xhr.open('POST', '/panel/api/zip.php');
+        xhr.send(fd);
+    }
+    setTimeout(function() { location.reload(); }, 2500);
+}
+
+// Extract existing ZIP
+async function extractZip(path) {
+    if (!AHPL.confirm('Extract file ZIP ini?')) return;
+    try {
+        const res = await AHPL.api('/panel/api/zip.php', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+            body: JSON.stringify({ action: 'extract', path: path })
+        });
+        if (res.success) {
+            AHPL.toast(res.extracted + ' file diekstrak');
+            setTimeout(function() { location.reload(); }, 500);
+        }
+    } catch(e) {
+        AHPL.toast(e.message || 'Gagal extract', 'error');
+    }
 }
 
 </script>
