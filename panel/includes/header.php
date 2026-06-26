@@ -58,6 +58,7 @@ $forcePasswordChange = needsPasswordChange();
                 <li><a href="/panel/websites.php" class="<?= $currentPage === 'websites' ? 'active' : '' ?>"><i class="fas fa-globe"></i> Websites</a></li>
                 <li><a href="/panel/files.php" class="<?= $currentPage === 'files' ? 'active' : '' ?>"><i class="fas fa-folder"></i> File Manager</a></li>
                 <li><a href="/panel/services.php" class="<?= $currentPage === 'services' ? 'active' : '' ?>"><i class="fas fa-play-circle"></i> Services</a></li>
+                <li><a href="/panel/database.php" class="<?= $currentPage === 'database' ? 'active' : '' ?>"><i class="fas fa-database"></i> Database</a></li>
                 <li><a href="/panel/editor.php" class="<?= $currentPage === 'editor' ? 'active' : '' ?>"><i class="fas fa-code"></i> Code Editor</a></li>
                 <li><a href="/panel/settings.php" class="<?= $currentPage === 'settings' ? 'active' : '' ?>"><i class="fas fa-cog"></i> Settings</a></li>
                 <div class="divider"></div>
