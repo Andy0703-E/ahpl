@@ -3,7 +3,6 @@ $pageTitle = 'Settings';
 require_once __DIR__ . '/includes/header.php';
 
 $cerebrasKey = getCerebrasKey();
-$tunnelUrl = getSetting(SETTING_CLOUDFLARE_URL);
 $loginHistory = getLoginHistory(10);
 ?>
 
@@ -31,19 +30,6 @@ $loginHistory = getLoginHistory(10);
             <input type="password" class="form-control" id="confirmPassword" placeholder="Ulangi password">
         </div>
         <button class="btn btn-primary" onclick="changePassword()"><i class="fas fa-save"></i> Ganti Password</button>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-header"><h3><i class="fas fa-shield-alt"></i> Cloudflare Tunnel</h3></div>
-    <div class="card-body">
-        <div class="form-group">
-            <label>URL Tunnel</label>
-            <input type="text" class="form-control" id="tunnelUrl" placeholder="https://abc.trycloudflare.com" value="<?= sanitize($tunnelUrl ?? '') ?>">
-        </div>
-        <button class="btn btn-primary" onclick="saveTunnelUrl()"><i class="fas fa-save"></i> Simpan</button>
-        <button class="btn btn-outline" onclick="showTunnelQR()" style="margin-left:8px;"><i class="fas fa-qrcode"></i> QR Code</button>
-        <div id="tunnelQrContainer" style="display:none;margin-top:14px;text-align:center;"></div>
     </div>
 </div>
 
@@ -130,32 +116,6 @@ async function changePassword() {
         document.getElementById('newPassword').value = '';
         document.getElementById('confirmPassword').value = '';
     }
-}
-
-async function saveTunnelUrl() {
-    const url = document.getElementById('tunnelUrl').value.trim();
-    if (!url) return AHPL.toast('Masukkan URL', 'error');
-    const res = await AHPL.api('/panel/api/settings.php', {
-        method: 'POST',
-        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-        body: JSON.stringify({ action: 'save_tunnel_url', url })
-    });
-    if (res.success) AHPL.toast('URL tunnel disimpan!');
-}
-
-function showTunnelQR() {
-    const url = document.getElementById('tunnelUrl').value.trim();
-    if (!url) return AHPL.toast('Simpan URL tunnel dulu', 'error');
-    const container = document.getElementById('tunnelQrContainer');
-    if (container.style.display !== 'none') { container.style.display = 'none'; return; }
-    container.style.display = 'block';
-    container.innerHTML = '<div id="qrcode"></div><p style="font-size:12px;color:#888;margin-top:8px;">Scan untuk buka di perangkat lain</p>';
-    // Simple QR generation using API
-    const img = document.createElement('img');
-    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
-    img.style.borderRadius = '8px';
-    img.alt = 'QR Code';
-    container.prepend(img);
 }
 
 async function deployGithub() {

@@ -27,13 +27,10 @@ pkg install nginx -y
 echo "[5/8] Install SQLite..."
 pkg install sqlite -y
 
-echo "[6/8] Install Cloudflared..."
-pkg install cloudflared -y
-
-echo "[7/8] Install tools (zip, unzip, curl, wget)..."
+echo "[6/8] Install tools (zip, unzip, curl, wget)..."
 pkg install zip unzip curl wget -y
 
-echo "[8/8] Install OpenSSH (opsional)..."
+echo "[7/8] Install OpenSSH (opsional)..."
 pkg install openssh -y || true
 
 # === DIRECTORIES ===
@@ -121,12 +118,6 @@ if [ -f "$PHP_FPM_CONF" ]; then
     sed -i 's/listen = \/data\/data\/com.termux\/files\/usr\/var\/run\/php-fpm.sock/listen = 127.0.0.1:9000/' "$PHP_FPM_CONF"
 fi
 
-# === CLOUDFLARED ===
-if ! command -v cloudflared &> /dev/null; then
-    curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm -o "$PREFIX/bin/cloudflared"
-    chmod +x "$PREFIX/bin/cloudflared"
-fi
-
 # === START SERVICES ===
 echo ""
 echo "Menjalankan services..."
@@ -145,7 +136,6 @@ echo "  Panel  : http://localhost:8080/"
 echo "  Login  : admin / admin"
 echo "  Folder : $AHPL_HOME"
 echo ""
-echo "  Tunnel : cloudflared tunnel --url http://localhost:8080"
 echo "  SSH    : sshd (jalankan manual)"
 echo ""
 echo "  Auto-start on boot:"

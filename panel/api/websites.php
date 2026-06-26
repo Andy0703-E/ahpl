@@ -35,10 +35,14 @@ if ($method === 'POST') {
         if (!is_dir($dir)) mkdir($dir, 0755, true);
 
         $html = $input['html'] ?? '';
-        if (!empty($html)) {
-            file_put_contents($dir . '/index.html', $html);
+        if (is_string($html) && strlen(trim($html)) > 0) {
+            $written = file_put_contents($dir . '/index.html', $html);
+            if ($written === false) {
+                jsonResponse(['error' => 'Gagal menulis file index.html'], 500);
+            }
         } else {
-            file_put_contents($dir . '/index.html', "<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><title>" . htmlspecialchars($name) . "</title></head>\n<body><h1>" . htmlspecialchars($name) . "</h1><p>Website ini berhasil dibuat!</p></body>\n</html>");
+            $fallback = "<!DOCTYPE html>\n<html>\n<head><meta charset=\"UTF-8\"><title>" . htmlspecialchars($name) . "</title></head>\n<body><h1>" . htmlspecialchars($name) . "</h1></body>\n</html>";
+            file_put_contents($dir . '/index.html', $fallback);
         }
 
         $stmt = $db->prepare("INSERT INTO websites (name, folder) VALUES (:name, :folder)");
