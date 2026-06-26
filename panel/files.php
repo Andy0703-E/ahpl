@@ -217,7 +217,9 @@ document.getElementById('uploadZone').addEventListener('drop', ev => doUpload(ev
 
 async function doUpload(files) {
     const prog = document.getElementById('uploadProgress');
+    let pending = 0, done = 0;
     for (const file of files) {
+        pending++;
         const fd = new FormData();
         fd.append('file', file);
         fd.append('dir', currentDir);
@@ -233,12 +235,20 @@ async function doUpload(files) {
                 if(pctEl) pctEl.textContent = pct + '%';
             }
         };
-        xhr.onload = () => { AHPL.toast(AHPL.escapeHtml(file.name) + ' diupload'); };
-        xhr.onerror = () => { AHPL.toast(AHPL.escapeHtml(file.name) + ' gagal', 'error'); };
+        xhr.onload = () => {
+            AHPL.toast(AHPL.escapeHtml(file.name) + ' diupload');
+            done++;
+            if (done >= pending) setTimeout(function() { location.reload(); }, 600);
+        };
+        xhr.onerror = () => {
+            AHPL.toast(AHPL.escapeHtml(file.name) + ' gagal', 'error');
+            done++;
+            if (done >= pending) setTimeout(function() { location.reload(); }, 600);
+        };
         xhr.open('POST', '/panel/api/upload.php');
         xhr.send(fd);
     }
-    setTimeout(() => location.reload(), 2000);
+    if (pending === 0) AHPL.toast('Tidak ada file dipilih', 'error');
 }
 
 // ZIP Upload
@@ -262,11 +272,13 @@ document.getElementById('zipUploadZone').addEventListener('drop', function(ev) {
 
 async function doZipUpload(files) {
     const prog = document.getElementById('zipProgress');
+    let pending = 0, done = 0;
     for (const file of files) {
         if (!file.name.toLowerCase().endsWith('.zip')) {
             AHPL.toast(AHPL.escapeHtml(file.name) + ' bukan file ZIP', 'error');
             continue;
         }
+        pending++;
         const fd = new FormData();
         fd.append('file', file);
         fd.append('dir', currentDir);
@@ -293,12 +305,18 @@ async function doZipUpload(files) {
             } catch(e) {
                 AHPL.toast('Gagal proses ZIP', 'error');
             }
+            done++;
+            if (done >= pending) setTimeout(function() { location.reload(); }, 600);
         };
-        xhr.onerror = function() { AHPL.toast(AHPL.escapeHtml(file.name) + ' gagal', 'error'); };
+        xhr.onerror = function() {
+            AHPL.toast(AHPL.escapeHtml(file.name) + ' gagal', 'error');
+            done++;
+            if (done >= pending) setTimeout(function() { location.reload(); }, 600);
+        };
         xhr.open('POST', '/panel/api/zip.php');
         xhr.send(fd);
     }
-    setTimeout(function() { location.reload(); }, 2500);
+    if (pending === 0) AHPL.toast('Tidak ada file ZIP valid', 'error');
 }
 
 // Extract existing ZIP
