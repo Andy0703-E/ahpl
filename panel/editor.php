@@ -43,14 +43,12 @@ if (!empty($file)) {
 
 <style>
 body .sidebar, body .topbar { display:none; }
-body .layout, body .main-content, body .content { height:100vh; overflow:hidden; }
 body .main-content { margin-left:0; }
 body .content { padding:0; }
-#editorLayout { margin:0; height:100vh; overflow:hidden; }
-#editorSidebar { height:100vh; }
-#editorMain { height:100vh; }
-#editorToolbar { padding:8px 16px; }
-#editor .CodeMirror { min-height:calc(100vh - 42px) !important; }
+#editorLayout { margin:0; height:100vh; }
+#editorMain { flex:1; display:flex; flex-direction:column; min-height:0; }
+#editorToolbar { padding:8px 16px; flex-shrink:0; }
+#editor { flex:1; min-height:0; }
 .tree-actions { display:none; margin-left:auto; flex-shrink:0; }
 .tree-file:hover .tree-actions, .tree-folder:hover .tree-actions { display:flex; gap:2px; }
 .tree-actions .btn-icon { width:22px; height:22px; font-size:10px; }
