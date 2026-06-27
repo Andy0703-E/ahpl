@@ -1,0 +1,5 @@
+RewriteEngine On
+RewriteRule ^$ index.php [L]
+RewriteRule ^api/(.*)$ api/$1 [L]
+RewriteRule ^assets/(.*)$ assets/$1 [L]
+RewriteRule ^(.*)$ index.php?page=$1 [L,QSA]
