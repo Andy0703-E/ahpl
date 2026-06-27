@@ -15,8 +15,12 @@ if ($method === 'GET') {
     $action = $_GET['action'] ?? '';
 
     if ($action === 'list_tables') {
-        $tables = dbListTables($dbType);
-        jsonResponse(['success' => true, 'tables' => $tables]);
+        try {
+            $tables = dbListTables($dbType);
+            jsonResponse(['success' => true, 'tables' => $tables]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => 'Gagal terhubung ke MariaDB: ' . $e->getMessage()], 500);
+        }
     }
 
     if ($action === 'get_table') {
@@ -28,27 +32,31 @@ if ($method === 'GET') {
         $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 50)));
         $offset = ($page - 1) * $perPage;
 
-        $total = dbGetRowCount($dbType, $table);
-        $schema = dbGetSchema($dbType, $table);
-        $cols = array_column($schema, 'name');
-        $q = dbQuote($dbType, $table);
+        try {
+            $total = dbGetRowCount($dbType, $table);
+            $schema = dbGetSchema($dbType, $table);
+            $cols = array_column($schema, 'name');
+            $q = dbQuote($dbType, $table);
 
-        $rows = [];
-        if ($dbType === 'mariadb') {
-            $pdo = getMariaDB();
-            $stmt = $pdo->prepare("SELECT * FROM $q LIMIT :lim OFFSET :off");
-            $stmt->bindValue(':lim', $perPage, PDO::PARAM_INT);
-            $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
-            $stmt->execute();
-            $rows = $stmt->fetchAll(PDO::FETCH_NUM);
-        } else {
-            $rowRes = getDB()->query("SELECT * FROM $q LIMIT $perPage OFFSET $offset");
-            while ($r = $rowRes->fetchArray(SQLITE3_NUM)) {
-                $rows[] = $r;
+            $rows = [];
+            if ($dbType === 'mariadb') {
+                $pdo = getMariaDB();
+                $stmt = $pdo->prepare("SELECT * FROM $q LIMIT :lim OFFSET :off");
+                $stmt->bindValue(':lim', $perPage, PDO::PARAM_INT);
+                $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
+                $stmt->execute();
+                $rows = $stmt->fetchAll(PDO::FETCH_NUM);
+            } else {
+                $rowRes = getDB()->query("SELECT * FROM $q LIMIT $perPage OFFSET $offset");
+                while ($r = $rowRes->fetchArray(SQLITE3_NUM)) {
+                    $rows[] = $r;
+                }
             }
-        }
 
-        jsonResponse(['success' => true, 'columns' => $cols, 'schema' => $schema, 'rows' => $rows, 'total' => $total, 'page' => $page]);
+            jsonResponse(['success' => true, 'columns' => $cols, 'schema' => $schema, 'rows' => $rows, 'total' => $total, 'page' => $page]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => 'Gagal mengambil data: ' . $e->getMessage()], 500);
+        }
     }
 
     if ($action === 'get_schema') {
@@ -56,8 +64,12 @@ if ($method === 'GET') {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) {
             jsonResponse(['error' => 'Invalid table name'], 400);
         }
-        $schema = dbGetSchema($dbType, $table);
-        jsonResponse(['success' => true, 'schema' => $schema]);
+        try {
+            $schema = dbGetSchema($dbType, $table);
+            jsonResponse(['success' => true, 'schema' => $schema]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => 'Gagal mengambil schema: ' . $e->getMessage()], 500);
+        }
     }
 
     if ($action === 'export_csv') {

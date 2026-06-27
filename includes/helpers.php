@@ -454,8 +454,10 @@ function isProcessRunning($name) {
         return false;
     }
     if ($name === 'mariadb') {
-        $out = @shell_exec("pidof mariadbd mysqld 2>/dev/null || pgrep -f 'mariadbd|mysqld' 2>/dev/null");
+        $out = @shell_exec("pidof mariadbd mysqld 2>/dev/null");
         if (!empty(trim($out ?? ''))) return true;
+        $out2 = @shell_exec("pgrep -x mariadbd 2>/dev/null; pgrep -x mysqld 2>/dev/null");
+        if (!empty(trim($out2 ?? ''))) return true;
         $socket = '/data/data/com.termux/files/usr/var/run/mysqld.sock';
         if (file_exists($socket)) return true;
         return false;
