@@ -537,8 +537,9 @@ select.form-control { appearance: none; background-image: url("data:image/svg+xm
 #editorLayout { display:flex; gap:0; margin:-26px; height:calc(100vh - 60px); }
 #editorSidebar {
     width:240px; background:var(--bg-card); border-right:1px solid var(--border);
-    display:flex; flex-direction:column; flex-shrink:0; overflow:hidden;
+    display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; transition:width 0.2s;
 }
+#editorSidebar.hide { width:0; min-width:0; border-right:none; padding:0; overflow:hidden; }
 #editorSidebar .sidebar-head {
     padding:12px 14px; font-size:12px; font-weight:700; text-transform:uppercase;
     letter-spacing:0.5px; color:var(--text-muted); border-bottom:1px solid var(--border);

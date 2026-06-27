@@ -68,6 +68,16 @@ if ($isFile) {
 </div>
 <?php else: ?>
 
+<style>
+body .sidebar, body .topbar { display:none; }
+body .main-content { margin-left:0; }
+body .content { padding:0; }
+#editorLayout { margin:0; height:100vh; }
+#editorMain { height:100vh; }
+#editorToolbar { padding:8px 16px; }
+#editor .CodeMirror { min-height:calc(100vh - 42px) !important; }
+</style>
+
 <div id="editorLayout">
     <div id="editorSidebar">
         <div class="sidebar-head">
@@ -79,6 +89,7 @@ if ($isFile) {
     <div id="editorMain">
         <div id="editorToolbar">
             <div style="display:flex;align-items:center;gap:10px;">
+                <button class="btn-icon" onclick="document.getElementById('editorSidebar').classList.toggle('hide')" title="Toggle Sidebar" style="color:var(--text-muted);"><i class="fas fa-bars"></i></button>
                 <strong id="editorFileName"><i class="fas fa-file-code"></i> <?= sanitize($fileName) ?></strong>
                 <span class="badge badge-info" id="editorLang"><?= strtoupper($lang) ?></span>
             </div>
