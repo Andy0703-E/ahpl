@@ -11,16 +11,16 @@ function getDB() {
 }
 
 function getMariaDB() {
-    static $pdo = null;
-    if ($pdo === null) {
-        $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";dbname=" . MARIADB_NAME . ";charset=utf8mb4";
-        $pdo = new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
-    }
-    return $pdo;
+    return getMariaDBWithDB(MARIADB_NAME);
+}
+
+function getMariaDBWithDB($dbName) {
+    $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";dbname=" . $dbName . ";charset=utf8mb4";
+    return new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
 }
 
 function getDBConnection($type) {

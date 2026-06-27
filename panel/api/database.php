@@ -8,15 +8,41 @@ if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 
 $dbType = $_GET['db_type'] ?? ($_POST['db_type'] ?? 'sqlite');
 $dbType = in_array($dbType, ['sqlite', 'mariadb']) ? $dbType : 'sqlite';
+$dbName = $_GET['db_name'] ?? ($_POST['db_name'] ?? MARIADB_NAME);
 
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
     $action = $_GET['action'] ?? '';
 
+    if ($action === 'list_databases') {
+        try {
+            $pdo = getMariaDBWithDB('information_schema');
+            $stmt = $pdo->query("SELECT SCHEMA_NAME FROM SCHEMATA WHERE SCHEMA_NAME NOT IN ('information_schema','performance_schema','mysql','sys') ORDER BY SCHEMA_NAME");
+            $dbs = [];
+            while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $dbs[] = $r['SCHEMA_NAME'];
+            }
+            jsonResponse(['success' => true, 'databases' => $dbs, 'current' => $dbName]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
     if ($action === 'list_tables') {
         try {
-            $tables = dbListTables($dbType);
+            if ($dbType === 'mariadb') {
+                $pdo = getMariaDBWithDB($dbName);
+                $stmt = $pdo->query("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote($dbName) . " ORDER BY TABLE_NAME");
+                $tables = [];
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $name = $row['TABLE_NAME'];
+                    $cnt = $pdo->query("SELECT COUNT(*) FROM `$name`")->fetchColumn();
+                    $tables[] = ['name' => $name, 'row_count' => (int)$cnt];
+                }
+            } else {
+                $tables = dbListTables('sqlite');
+            }
             jsonResponse(['success' => true, 'tables' => $tables]);
         } catch (Exception $e) {
             jsonResponse(['error' => 'Gagal terhubung ke MariaDB: ' . $e->getMessage()], 500);
@@ -33,24 +59,39 @@ if ($method === 'GET') {
         $offset = ($page - 1) * $perPage;
 
         try {
-            $total = dbGetRowCount($dbType, $table);
-            $schema = dbGetSchema($dbType, $table);
-            $cols = array_column($schema, 'name');
-            $q = dbQuote($dbType, $table);
-
-            $rows = [];
             if ($dbType === 'mariadb') {
-                $pdo = getMariaDB();
+                $pdo = getMariaDBWithDB($dbName);
+                $q = '`' . str_replace('`', '``', $table) . '`';
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM $q");
+                $stmt->execute();
+                $total = (int)$stmt->fetchColumn();
+                $stmt = $pdo->prepare("SHOW COLUMNS FROM $q");
+                $stmt->execute();
+                $schema = [];
+                while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $schema[] = [
+                        'cid' => count($schema),
+                        'name' => $r['Field'],
+                        'type' => $r['Type'],
+                        'notnull' => $r['Null'] === 'NO' ? 1 : 0,
+                        'dflt_value' => $r['Default'],
+                        'pk' => $r['Key'] === 'PRI' ? 1 : 0,
+                    ];
+                }
+                $cols = array_column($schema, 'name');
                 $stmt = $pdo->prepare("SELECT * FROM $q LIMIT :lim OFFSET :off");
                 $stmt->bindValue(':lim', $perPage, PDO::PARAM_INT);
                 $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
                 $stmt->execute();
                 $rows = $stmt->fetchAll(PDO::FETCH_NUM);
             } else {
+                $total = dbGetRowCount('sqlite', $table);
+                $schema = dbGetSchema('sqlite', $table);
+                $cols = array_column($schema, 'name');
+                $q = dbQuote('sqlite', $table);
                 $rowRes = getDB()->query("SELECT * FROM $q LIMIT $perPage OFFSET $offset");
-                while ($r = $rowRes->fetchArray(SQLITE3_NUM)) {
-                    $rows[] = $r;
-                }
+                $rows = [];
+                while ($r = $rowRes->fetchArray(SQLITE3_NUM)) { $rows[] = $r; }
             }
 
             jsonResponse(['success' => true, 'columns' => $cols, 'schema' => $schema, 'rows' => $rows, 'total' => $total, 'page' => $page]);
@@ -65,7 +106,25 @@ if ($method === 'GET') {
             jsonResponse(['error' => 'Invalid table name'], 400);
         }
         try {
-            $schema = dbGetSchema($dbType, $table);
+            if ($dbType === 'mariadb') {
+                $pdo = getMariaDBWithDB($dbName);
+                $q = '`' . str_replace('`', '``', $table) . '`';
+                $stmt = $pdo->prepare("SHOW COLUMNS FROM $q");
+                $stmt->execute();
+                $schema = [];
+                while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $schema[] = [
+                        'cid' => count($schema),
+                        'name' => $r['Field'],
+                        'type' => $r['Type'],
+                        'notnull' => $r['Null'] === 'NO' ? 1 : 0,
+                        'dflt_value' => $r['Default'],
+                        'pk' => $r['Key'] === 'PRI' ? 1 : 0,
+                    ];
+                }
+            } else {
+                $schema = dbGetSchema('sqlite', $table);
+            }
             jsonResponse(['success' => true, 'schema' => $schema]);
         } catch (Exception $e) {
             jsonResponse(['error' => 'Gagal mengambil schema: ' . $e->getMessage()], 500);
@@ -73,15 +132,15 @@ if ($method === 'GET') {
     }
 
     if ($action === 'db_info') {
-        $info = ['type' => $dbType, 'name' => $dbType === 'mariadb' ? MARIADB_NAME : 'SQLite'];
+        $info = ['type' => $dbType, 'name' => $dbName];
         if ($dbType === 'mariadb') {
             try {
-                $pdo = getMariaDB();
+                $pdo = getMariaDBWithDB($dbName);
                 $stmt = $pdo->query("SELECT VERSION() AS ver");
                 $info['version'] = $stmt->fetchColumn();
-                $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote(MARIADB_NAME));
+                $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote($dbName));
                 $info['table_count'] = (int)$stmt->fetchColumn();
-                $stmt = $pdo->query("SELECT ROUND(SUM(data_length + index_length) / 1024, 1) FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote(MARIADB_NAME));
+                $stmt = $pdo->query("SELECT ROUND(SUM(data_length + index_length) / 1024, 1) FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote($dbName));
                 $info['size_kb'] = (float)$stmt->fetchColumn();
                 $stmt = $pdo->query("SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Uptime'");
                 $uptime = $stmt->fetchColumn();
@@ -116,8 +175,8 @@ if ($method === 'GET') {
         fputcsv($output, $cols);
 
         if ($dbType === 'mariadb') {
-            $pdo = getMariaDB();
-            $stmt = $pdo->query("SELECT * FROM $q");
+            $pdo = getMariaDBWithDB($dbName);
+            $stmt = $pdo->query("SELECT * FROM `$table`");
             while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $row = [];
                 foreach ($cols as $c) {
@@ -149,37 +208,69 @@ if ($method === 'POST') {
     $dbType = in_array($dbType, ['sqlite', 'mariadb']) ? $dbType : 'sqlite';
     $action = $input['action'] ?? '';
 
+    if ($action === 'create_database') {
+        $name = $input['name'] ?? '';
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) jsonResponse(['error' => 'Invalid database name'], 400);
+        try {
+            $pdo = getMariaDBWithDB('information_schema');
+            $pdo->exec("CREATE DATABASE `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            logAction('db_create_db', "CREATE DATABASE $name");
+            jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    if ($action === 'drop_database') {
+        $name = $input['name'] ?? '';
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) jsonResponse(['error' => 'Invalid database name'], 400);
+        try {
+            $pdo = getMariaDBWithDB('information_schema');
+            $pdo->exec("DROP DATABASE `$name`");
+            logAction('db_drop_db', "DROP DATABASE $name");
+            jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+
     if ($action === 'insert_row') {
         $table = $input['table'] ?? '';
         $data = $input['data'] ?? [];
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table'], 400);
         if (empty($data)) jsonResponse(['error' => 'Data kosong'], 400);
 
-        $cols = [];
-        $vals = [];
-        $q = dbQuote($dbType, '');
-        foreach ($data as $k => $v) {
-            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $cols[] = $q . $k . $q;
-            $vals[] = ":$k";
+        if ($dbType === 'mariadb') {
+            $pdo = getMariaDBWithDB($dbName);
+            $cols = []; $vals = [];
+            foreach ($data as $k => $v) {
+                if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
+                $cols[] = "`$k`"; $vals[] = ":$k";
+            }
+            if (empty($cols)) jsonResponse(['error' => 'Data kosong'], 400);
+            $stmt = $pdo->prepare("INSERT INTO `$table` (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ")");
+            $params = []; foreach ($data as $k => $v) { if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) $params[":$k"] = $v; }
+            $stmt->execute($params);
+            $id = $pdo->lastInsertId();
+        } else {
+            $cols = []; $vals = []; $q = dbQuote($dbType, '');
+            foreach ($data as $k => $v) {
+                if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
+                $cols[] = $q . $k . $q; $vals[] = ":$k";
+            }
+            $tq = dbQuote($dbType, $table);
+            $params = []; $paramTypes = [];
+            foreach ($data as $k => $v) {
+                if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
+                $params[":$k"] = $v;
+                if (is_numeric($v)) $paramTypes[":$k"] = SQLITE3_INTEGER;
+            }
+            dbPrepareExecute($dbType, "INSERT INTO $tq (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $vals) . ")", $params, $paramTypes);
+            $id = dbLastInsertId($dbType);
         }
-        if (empty($cols)) jsonResponse(['error' => 'Data kosong'], 400);
-
-        $colList = implode(', ', $cols);
-        $valList = implode(', ', $vals);
-        $tq = dbQuote($dbType, $table);
-        $paramTypes = [];
-        $params = [];
-        foreach ($data as $k => $v) {
-            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $params[":$k"] = $v;
-            if (is_numeric($v)) $paramTypes[":$k"] = SQLITE3_INTEGER;
-        }
-
-        dbPrepareExecute($dbType, "INSERT INTO $tq ($colList) VALUES ($valList)", $params, $paramTypes);
 
         logAction('db_insert', "INSERT INTO $table");
-        jsonResponse(['success' => true, 'id' => dbLastInsertId($dbType)]);
+        jsonResponse(['success' => true, 'id' => $id]);
     }
 
     if ($action === 'update_row') {
@@ -191,26 +282,35 @@ if ($method === 'POST') {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $idColumn)) jsonResponse(['error' => 'Invalid id column'], 400);
         if (empty($data)) jsonResponse(['error' => 'Data kosong'], 400);
 
-        $sets = [];
-        $q = dbQuote($dbType, '');
-        foreach ($data as $k => $v) {
-            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $sets[] = $q . $k . $q . " = :$k";
+        if ($dbType === 'mariadb') {
+            $pdo = getMariaDBWithDB($dbName);
+            $sets = [];
+            foreach ($data as $k => $v) {
+                if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
+                $sets[] = "`$k` = :$k";
+            }
+            $idQ = "`$idColumn`";
+            $stmt = $pdo->prepare("UPDATE `$table` SET " . implode(', ', $sets) . " WHERE $idQ = :__id__");
+            $params = [':__id__' => $idValue];
+            foreach ($data as $k => $v) { if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) $params[":$k"] = $v; }
+            $stmt->execute($params);
+        } else {
+            $sets = []; $q = dbQuote($dbType, '');
+            foreach ($data as $k => $v) {
+                if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
+                $sets[] = $q . $k . $q . " = :$k";
+            }
+            $tq = dbQuote($dbType, $table);
+            $idQ = $q . $idColumn . $q;
+            $params = [':__id__' => $idValue];
+            $paramTypes = [':__id__' => is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT];
+            foreach ($data as $k => $v) {
+                if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
+                $params[":$k"] = $v;
+                $paramTypes[":$k"] = is_numeric($v) ? SQLITE3_INTEGER : SQLITE3_TEXT;
+            }
+            dbPrepareExecute($dbType, "UPDATE $tq SET " . implode(', ', $sets) . " WHERE $idQ = :__id__", $params, $paramTypes);
         }
-        if (empty($sets)) jsonResponse(['error' => 'Data kosong'], 400);
-
-        $setStr = implode(', ', $sets);
-        $tq = dbQuote($dbType, $table);
-        $idQ = $q . $idColumn . $q;
-        $params = [':__id__' => $idValue];
-        $paramTypes = [':__id__' => is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT];
-        foreach ($data as $k => $v) {
-            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $params[":$k"] = $v;
-            $paramTypes[":$k"] = is_numeric($v) ? SQLITE3_INTEGER : SQLITE3_TEXT;
-        }
-
-        dbPrepareExecute($dbType, "UPDATE $tq SET $setStr WHERE $idQ = :__id__", $params, $paramTypes);
 
         logAction('db_update', "UPDATE $table WHERE $idColumn = $idValue");
         jsonResponse(['success' => true, 'affected' => 1]);
@@ -223,10 +323,16 @@ if ($method === 'POST') {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table'], 400);
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $idColumn)) jsonResponse(['error' => 'Invalid id column'], 400);
 
-        $tq = dbQuote($dbType, $table);
-        $q = dbQuote($dbType, '');
-        $idQ = $q . $idColumn . $q;
-        dbPrepareExecute($dbType, "DELETE FROM $tq WHERE $idQ = :id", [':id' => $idValue], [':id' => is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT]);
+        if ($dbType === 'mariadb') {
+            $pdo = getMariaDBWithDB($dbName);
+            $stmt = $pdo->prepare("DELETE FROM `$table` WHERE `$idColumn` = :id");
+            $stmt->execute([':id' => $idValue]);
+        } else {
+            $tq = dbQuote($dbType, $table);
+            $q = dbQuote($dbType, '');
+            $idQ = $q . $idColumn . $q;
+            dbPrepareExecute($dbType, "DELETE FROM $tq WHERE $idQ = :id", [':id' => $idValue], [':id' => is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT]);
+        }
 
         logAction('db_delete', "DELETE FROM $table WHERE $idColumn = $idValue");
         jsonResponse(['success' => true, 'affected' => 1]);
@@ -252,33 +358,39 @@ if ($method === 'POST') {
 
         // FLUSH PRIVILEGES dulu biar CREATE USER/GRANT bisa jalan walau --skip-grant-tables
         if ($isWrite && $dbType === 'mariadb') {
-            try { getMariaDB()->exec("FLUSH PRIVILEGES"); } catch (Exception $e) {}
+            try { getMariaDBWithDB('information_schema')->exec("FLUSH PRIVILEGES"); } catch (Exception $e) {}
         }
 
         $start = microtime(true);
         try {
             if ($isRead) {
-                $result = dbQuery($dbType, $rawQuery);
                 $elapsed = round(microtime(true) - $start, 4);
-
-                if ($result === false) {
-                    jsonResponse(['error' => 'Query execution failed'], 400);
-                }
-
                 $columns = [];
                 $rows = [];
-                $colCount = dbColumnCount($dbType, $result);
-                if ($colCount > 0) {
-                    for ($i = 0; $i < $colCount; $i++) {
-                        $columns[] = dbColumnName($dbType, $result, $i);
+
+                if ($dbType === 'mariadb') {
+                    $pdo = getMariaDBWithDB($dbName);
+                    $stmt = $pdo->query($rawQuery);
+                    $colCount = $stmt->columnCount();
+                    if ($colCount > 0) {
+                        for ($i = 0; $i < $colCount; $i++) {
+                            $meta = $stmt->getColumnMeta($i);
+                            $columns[] = $meta['name'];
+                        }
+                        $all = $stmt->fetchAll(PDO::FETCH_NUM);
+                        $rows = count($all) > 1000 ? array_slice($all, 0, 1000) : $all;
                     }
-                    $rows = dbFetchAll($dbType, $result);
-                    if (count($rows) > 1000) {
-                        $rows = array_slice($rows, 0, 1000);
+                } else {
+                    $result = dbQuery($dbType, $rawQuery);
+                    $colCount = dbColumnCount($dbType, $result);
+                    if ($colCount > 0) {
+                        for ($i = 0; $i < $colCount; $i++) {
+                            $columns[] = dbColumnName($dbType, $result, $i);
+                        }
+                        $all = dbFetchAll($dbType, $result);
+                        $rows = count($all) > 1000 ? array_slice($all, 0, 1000) : $all;
                     }
-                }
-                if ($dbType === 'sqlite' && method_exists($result, 'finalize')) {
-                    $result->finalize();
+                    if (method_exists($result, 'finalize')) $result->finalize();
                 }
 
                 jsonResponse([
@@ -290,7 +402,7 @@ if ($method === 'POST') {
                 ]);
             } else {
                 if ($dbType === 'mariadb') {
-                    $affected = getMariaDB()->exec($rawQuery);
+                    $affected = getMariaDBWithDB($dbName)->exec($rawQuery);
                 } else {
                     getDB()->exec($rawQuery);
                     $affected = getDB()->changes();
@@ -313,7 +425,7 @@ if ($method === 'POST') {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table name'], 400);
         try {
             if ($dbType === 'mariadb') {
-                getMariaDB()->exec("DROP TABLE `$table`");
+                getMariaDBWithDB($dbName)->exec("DROP TABLE `$table`");
             } else {
                 getDB()->exec("DROP TABLE \"$table\"");
             }
@@ -329,7 +441,7 @@ if ($method === 'POST') {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table name'], 400);
         try {
             if ($dbType === 'mariadb') {
-                getMariaDB()->exec("TRUNCATE TABLE `$table`");
+                getMariaDBWithDB($dbName)->exec("TRUNCATE TABLE `$table`");
             } else {
                 getDB()->exec("DELETE FROM \"$table\"");
             }
@@ -361,7 +473,7 @@ if ($method === 'POST') {
             if (empty($defs)) jsonResponse(['error' => 'No valid columns'], 400);
             $sql = "CREATE TABLE `$table` (" . implode(', ', $defs) . ")";
             if ($dbType === 'mariadb') {
-                getMariaDB()->exec($sql . " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                getMariaDBWithDB($dbName)->exec($sql . " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             } else {
                 getDB()->exec($sql);
             }

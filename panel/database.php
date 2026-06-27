@@ -41,7 +41,9 @@ require_once __DIR__ . '/includes/header.php';
     <div class="info">
       <span><i class="fas fa-tag"></i> <strong id="hdrVersion">-</strong></span>
       <span><i class="fas fa-table"></i> Tables: <strong id="hdrTables">0</strong></span>
-      <span><i class="fas fa-database"></i> <strong id="hdrDbName"><?= MARIADB_NAME ?></strong></span>
+      <span><i class="fas fa-database"></i>
+        <select id="dbSelector" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:13px;font-weight:600;cursor:pointer;" onchange="switchDB(this.value)"></select>
+      </span>
       <span><i class="fas fa-hdd"></i> Size: <strong id="hdrSize">0 KB</strong></span>
       <span id="hdrUptimeRow"><i class="fas fa-clock"></i> Uptime: <strong id="hdrUptime">-</strong></span>
     </div>
@@ -53,7 +55,8 @@ require_once __DIR__ . '/includes/header.php';
     <div class="db-card-head">
       <h3><i class="fas fa-list"></i> Tables</h3>
       <div class="actions">
-        <button class="btn btn-sm btn-success" onclick="openCreateTable()"><i class="fas fa-plus"></i> New</button>
+        <button class="btn btn-sm btn-primary" onclick="openNewDB()"><i class="fas fa-plus-circle"></i> New DB</button>
+        <button class="btn btn-sm btn-success" onclick="openCreateTable()"><i class="fas fa-plus"></i> New Table</button>
         <button class="btn btn-sm btn-info" onclick="openQuery()"><i class="fas fa-terminal"></i> SQL</button>
         <button class="btn btn-sm btn-outline" onclick="init()"><i class="fas fa-sync"></i></button>
       </div>
@@ -101,6 +104,20 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <!-- Modals -->
+<div id="newDBModal" class="modal-overlay">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header"><h3><i class="fas fa-plus-circle"></i> New Database</h3><button class="modal-close" onclick="closeNewDB()">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Database name</label><input type="text" class="form-control" id="newDBName" placeholder="contoh: db_toko" style="text-transform:lowercase;"></div>
+      <p style="font-size:12px;color:#888;">Hanya huruf, angka, dan underscore.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeNewDB()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmNewDB()">Create</button>
+    </div>
+  </div>
+</div>
+
 <div id="createTableModal" class="modal-overlay">
   <div class="modal" style="max-width:620px;">
     <div class="modal-header"><h3><i class="fas fa-plus-circle"></i> Create Table</h3><button class="modal-close" onclick="closeCreateTable()">&times;</button></div>
@@ -212,7 +229,35 @@ require_once __DIR__ . '/includes/header.php';
 let currentTable = null, currentSchema = null, currentPage = 1;
 let editingRow = null, deletingRow = null;
 let _dropTable = null, _truncateTable = null;
+let currentDB = '<?= MARIADB_NAME ?>';
 const PER_PAGE = 50;
+
+function dbp() { return 'db_type=mariadb&db_name=' + encodeURIComponent(currentDB); }
+
+async function loadDatabases() {
+  try {
+    var res = await AHPL.api('/panel/api/database.php?action=list_databases&db_type=mariadb');
+    var sel = document.getElementById('dbSelector');
+    sel.innerHTML = '';
+    res.databases.forEach(function(d) {
+      var o = document.createElement('option');
+      o.value = d; o.textContent = d;
+      if (d === currentDB) o.selected = true;
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+function switchDB(name) {
+  currentDB = name;
+  document.getElementById('tableViewer').style.display = 'none';
+  currentTable = null;
+  var el = document.getElementById('dbStatus');
+  el.className = 'loading';
+  el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Switching...';
+  loadDbInfo();
+  loadTables();
+}
 
 function init() {
   var el = document.getElementById('dbStatus');
@@ -222,6 +267,7 @@ function init() {
   document.getElementById('tableViewer').style.display = 'none';
   currentTable = null;
 
+  loadDatabases();
   loadDbInfo();
   loadTables();
 }
@@ -229,7 +275,7 @@ function init() {
 // --- DB Info ---
 async function loadDbInfo() {
   try {
-    var res = await AHPL.api('/panel/api/database.php?action=db_info&db_type=mariadb');
+    var res = await AHPL.api('/panel/api/database.php?action=db_info&' + dbp());
     if (!res.info) return;
     var i = res.info;
     document.getElementById('hdrVersion').textContent = i.version || '-';
@@ -253,7 +299,7 @@ async function loadDbInfo() {
 // --- Tables ---
 async function loadTables() {
   try {
-    var res = await AHPL.api('/panel/api/database.php?action=list_tables&db_type=mariadb');
+    var res = await AHPL.api('/panel/api/database.php?action=list_tables&' + dbp());
     var el = document.getElementById('tablesContainer');
     if (!res.tables || !res.tables.length) {
       el.innerHTML = '<p style="color:#888;font-size:13px;text-align:center;padding:20px;">Tidak ada tabel</p>';
@@ -279,7 +325,7 @@ async function showStructure(table) {
   document.getElementById('tableViewer').style.display = 'block';
   switchTab('structure');
   try {
-    var res = await AHPL.api('/panel/api/database.php?action=get_schema&table=' + encodeURIComponent(table) + '&db_type=mariadb');
+    var res = await AHPL.api('/panel/api/database.php?action=get_schema&table=' + encodeURIComponent(table) + '&' + dbp());
     currentSchema = res.schema;
     document.getElementById('schemaContent').innerHTML = '<table class="table pma-table"><thead><tr><th>#</th><th>Column</th><th>Type</th><th>Collation</th><th>Null</th><th>Default</th><th>Extra</th></tr></thead><tbody>' +
       res.schema.map(function(s, i) {
@@ -300,7 +346,7 @@ async function viewTable(table, page) {
   document.getElementById('tableContent').innerHTML = '<p style="color:#888;font-size:13px;">Loading...</p>';
 
   try {
-    var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + encodeURIComponent(table) + '&page=' + page + '&per_page=' + PER_PAGE + '&db_type=mariadb');
+    var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + encodeURIComponent(table) + '&page=' + page + '&per_page=' + PER_PAGE + '&' + dbp());
     currentSchema = res.schema;
     var pkCol = null;
     for (var i = 0; i < res.schema.length; i++) { if (res.schema[i].pk) { pkCol = res.schema[i]; break; } }
@@ -392,7 +438,7 @@ function addRow() {
 }
 async function editRow(table, idCol, idVal) {
   try {
-    var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + table + '&page=1&per_page=10000000&db_type=mariadb');
+    var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + table + '&page=1&per_page=10000000&' + dbp());
     var idx = res.columns.indexOf(idCol);
     if (idx < 0) { AHPL.toast('ID column not found', 'error'); return; }
     var rowData = null;
@@ -411,7 +457,7 @@ function closeRowModal() { document.getElementById('rowModal').classList.remove(
 async function saveRow() {
   var data = getFormData(editingRow ? editingRow.schema : currentSchema);
   var table = editingRow ? editingRow.table : currentTable;
-  var body = { db_type: 'mariadb' };
+  var body = { db_type: 'mariadb', db_name: currentDB };
   try {
     if (editingRow) {
       body.action = 'update_row'; body.table = table; body.id_column = editingRow.idCol; body.id_value = editingRow.idVal; body.data = data;
@@ -430,12 +476,12 @@ function closeDeleteModal() { document.getElementById('deleteModal').classList.r
 async function confirmDelete() {
   if (!deletingRow) return;
   try {
-    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'delete_row', table: deletingRow.table, id_column: deletingRow.idCol, id_value: deletingRow.idVal, db_type: 'mariadb' }) });
+    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'delete_row', table: deletingRow.table, id_column: deletingRow.idCol, id_value: deletingRow.idVal, db_type: 'mariadb', db_name: currentDB }) });
     if (res.success) { AHPL.toast('Row deleted'); closeDeleteModal(); viewTable(deletingRow.table, currentPage); }
   } catch(e) { AHPL.toast(e.message, 'error'); }
 }
 // --- CSV ---
-function exportCSV() { if (!currentTable) return; window.location = '/panel/api/database.php?action=export_csv&table=' + encodeURIComponent(currentTable) + '&db_type=mariadb&t=' + Date.now(); }
+function exportCSV() { if (!currentTable) return; window.location = '/panel/api/database.php?action=export_csv&table=' + encodeURIComponent(currentTable) + '&' + dbp() + '&t=' + Date.now(); }
 
 // --- SQL Query ---
 function openQuery() { document.getElementById('sqlQuery').value = ''; document.getElementById('queryResult').innerHTML = ''; document.getElementById('queryModal').classList.add('active'); setTimeout(function() { document.getElementById('sqlQuery').focus(); }, 150); }
@@ -446,7 +492,7 @@ async function executeQuery() {
   var rd = document.getElementById('queryResult');
   rd.innerHTML = '<p style="color:#888;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Running...</p>';
   try {
-    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'query', query: q, db_type: 'mariadb' }) });
+    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'query', query: q, db_type: 'mariadb', db_name: currentDB }) });
     if (res.columns && res.columns.length) {
       var h = '<div style="margin-bottom:8px;font-size:12px;color:#666;">' + res.rows.length + ' row(s) in ' + res.elapsed + 's</div><div style="overflow-x:auto;"><table class="table pma-table"><thead><tr>';
       res.columns.forEach(function(c) { h += '<th>' + AHPL.escapeHtml(c) + '</th>'; });
@@ -472,7 +518,7 @@ async function executeWriteQuery() {
   var rd = document.getElementById('queryResult');
   rd.innerHTML = '<p style="color:#888;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Running...</p>';
   try {
-    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'query', query: q, confirm_write: true, db_type: 'mariadb' }) });
+    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'query', query: q, confirm_write: true, db_type: 'mariadb', db_name: currentDB }) });
     rd.innerHTML = '<div style="padding:12px;background:#d4edda;color:#155724;border-radius:8px;font-size:13px;"><i class="fas fa-check-circle"></i> Query executed. Affected: ' + res.affected + ' (' + res.elapsed + 's)</div>';
   } catch(e) { rd.innerHTML = '<div style="padding:12px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:13px;"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(e.message) + '</div>'; }
 }
@@ -482,7 +528,7 @@ function dropTable(n) { _dropTable = n; document.getElementById('dropTableName')
 function closeDropTable() { document.getElementById('dropTableModal').classList.remove('active'); _dropTable = null; }
 async function confirmDropTable() {
   if (!_dropTable) return;
-  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'drop_table', table:_dropTable, db_type:'mariadb'}) }); if (r.success) { AHPL.toast('Table dropped'); closeDropTable(); document.getElementById('tableViewer').style.display='none'; loadTables(); loadDbInfo(); } }
+  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'drop_table', table:_dropTable, db_type:'mariadb', db_name: currentDB}) }); if (r.success) { AHPL.toast('Table dropped'); closeDropTable(); document.getElementById('tableViewer').style.display='none'; loadTables(); loadDbInfo(); } }
   catch(e) { AHPL.toast(e.message, 'error'); }
 }
 // --- Truncate ---
@@ -490,7 +536,7 @@ function truncateTable() { if (!currentTable) return; _truncateTable = currentTa
 function closeTruncateTable() { document.getElementById('truncateTableModal').classList.remove('active'); _truncateTable = null; }
 async function confirmTruncateTable() {
   if (!_truncateTable) return;
-  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'truncate_table', table:_truncateTable, db_type:'mariadb'}) }); if (r.success) { AHPL.toast('Table emptied'); closeTruncateTable(); viewTable(currentTable, 1); loadTables(); } }
+  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'truncate_table', table:_truncateTable, db_type:'mariadb', db_name: currentDB}) }); if (r.success) { AHPL.toast('Table emptied'); closeTruncateTable(); viewTable(currentTable, 1); loadTables(); } }
   catch(e) { AHPL.toast(e.message, 'error'); }
 }
 // --- Create Table ---
@@ -513,7 +559,7 @@ async function confirmCreateTable() {
     cols.push({ name: cn, type: ct, pk: chk[0] ? chk[0].checked : false, auto: chk[1] ? chk[1].checked : false, notnull: chk[2] ? chk[2].checked : false });
   });
   if (cols.length === 0) { AHPL.toast('At least 1 column', 'error'); return; }
-  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'create_table', table:name, columns:cols, db_type:'mariadb'}) }); if (r.success) { AHPL.toast('Table created!'); closeCreateTable(); loadTables(); loadDbInfo(); } }
+  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'create_table', table:name, columns:cols, db_type:'mariadb', db_name: currentDB}) }); if (r.success) { AHPL.toast('Table created!'); closeCreateTable(); loadTables(); loadDbInfo(); } }
   catch(e) { AHPL.toast(e.message, 'error'); }
 }
 // --- Add Column ---
@@ -534,7 +580,7 @@ async function confirmAddColumn() {
   if (dv) parts.push("DEFAULT " + (isNaN(dv) ? "'" + dv.replace(/'/g, "''") + "'" : dv));
   var sql = "ALTER TABLE `" + currentTable + "` ADD COLUMN " + parts.join(' ');
   try {
-    var res = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'query', query: sql, confirm_write: true, db_type:'mariadb'}) });
+    var res = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'query', query: sql, confirm_write: true, db_type:'mariadb', db_name: currentDB}) });
     if (res.success) { AHPL.toast('Column added!'); closeAddColumn(); showStructure(currentTable); }
   } catch(e) { AHPL.toast(e.message, 'error'); }
 }
@@ -542,6 +588,18 @@ async function confirmAddColumn() {
 function addColumn() {
   document.getElementById('acName').value = ''; document.getElementById('acPk').checked = false; document.getElementById('acAi').checked = false; document.getElementById('acNn').checked = false; document.getElementById('acDefault').value = '';
   document.getElementById('addColumnModal').classList.add('active');
+}
+
+// --- New Database ---
+function openNewDB() { document.getElementById('newDBName').value = ''; document.getElementById('newDBModal').classList.add('active'); setTimeout(function() { document.getElementById('newDBName').focus(); }, 150); }
+function closeNewDB() { document.getElementById('newDBModal').classList.remove('active'); }
+async function confirmNewDB() {
+  var name = document.getElementById('newDBName').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  if (!name) { AHPL.toast('Database name required', 'error'); return; }
+  try {
+    var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'create_database', name: name}) });
+    if (r.success) { AHPL.toast('Database "' + name + '" created!'); closeNewDB(); currentDB = name; loadDatabases(); loadDbInfo(); loadTables(); document.getElementById('dbSelector').value = name; }
+  } catch(e) { AHPL.toast(e.message, 'error'); }
 }
 
 document.addEventListener('DOMContentLoaded', init);
