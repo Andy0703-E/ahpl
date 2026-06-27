@@ -4,7 +4,24 @@ require_once __DIR__ . '/includes/header.php';
 
 $cerebrasKey = getCerebrasKey();
 $loginHistory = getLoginHistory(10);
+$db = getDB();
+$tunnelDomain = $db->querySingle("SELECT url FROM tunnel_domains ORDER BY id DESC LIMIT 1");
 ?>
+
+<?php if ($tunnelDomain): ?>
+<div class="card">
+    <div class="card-header"><h3><i class="fas fa-cloud"></i> Cloudflared Tunnel</h3></div>
+    <div class="card-body" style="text-align:center;">
+        <p style="font-size:14px;margin-bottom:10px;">Domain aktif:</p>
+        <p style="font-size:18px;font-weight:700;word-break:break-all;">
+            <a href="<?= htmlspecialchars($tunnelDomain) ?>" target="_blank" rel="noopener" style="color:var(--primary);"><?= htmlspecialchars($tunnelDomain) ?></a>
+        </p>
+        <p style="font-size:12px;color:#888;margin-top:10px;">
+            <i class="fas fa-info-circle"></i> Domain akan otomatis terganti saat tunnel restart
+        </p>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="card">
     <div class="card-header"><h3><i class="fas fa-robot"></i> AI Settings</h3></div>
