@@ -6,9 +6,10 @@ header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 
-$dbType = $_GET['db_type'] ?? ($_POST['db_type'] ?? 'sqlite');
+$input = json_decode(file_get_contents('php://input'), true) ?? [];
+$dbType = $_GET['db_type'] ?? ($_POST['db_type'] ?? ($input['db_type'] ?? 'sqlite'));
 $dbType = in_array($dbType, ['sqlite', 'mariadb']) ? $dbType : 'sqlite';
-$dbName = $_GET['db_name'] ?? ($_POST['db_name'] ?? MARIADB_NAME);
+$dbName = $_GET['db_name'] ?? ($_POST['db_name'] ?? ($input['db_name'] ?? MARIADB_NAME));
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -209,9 +210,6 @@ if ($method === 'GET') {
 
 if ($method === 'POST') {
     requireCSRF();
-    $input = json_decode(file_get_contents('php://input'), true);
-    $dbType = $input['db_type'] ?? 'sqlite';
-    $dbType = in_array($dbType, ['sqlite', 'mariadb']) ? $dbType : 'sqlite';
     $action = $input['action'] ?? '';
 
     if ($action === 'create_database') {
