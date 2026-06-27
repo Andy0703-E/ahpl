@@ -85,6 +85,25 @@ if ($method === 'POST') {
         logAction('mkdir', "$dir/$name");
         jsonResponse(['success' => true]);
     }
+
+    if ($action === 'create_file') {
+        $dir = $input['dir'] ?? '/';
+        $name = $input['name'] ?? '';
+        if (!preg_match('/^[a-zA-Z0-9_\-\.]+$/', $name)) {
+            jsonResponse(['error' => 'Nama file tidak valid'], 400);
+        }
+        $full = resolvePath($base, $dir);
+        if (!isPathSafe($full, $base)) jsonResponse(['error' => 'Invalid'], 400);
+        $newFile = resolvePath($full, basename($name));
+        if (!isPathSafe($newFile, $base)) jsonResponse(['error' => 'Invalid'], 400);
+        if (file_exists($newFile)) jsonResponse(['error' => 'File sudah ada'], 400);
+        if (file_put_contents($newFile, '') === false) {
+            jsonResponse(['error' => 'Gagal membuat file'], 500);
+        }
+        $rel = ltrim(rtrim($dir, '/') . '/' . $name, '/');
+        logAction('create_file', $rel);
+        jsonResponse(['success' => true, 'path' => $rel]);
+    }
 }
 
 jsonResponse(['error' => 'Invalid'], 400);

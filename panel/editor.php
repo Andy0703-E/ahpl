@@ -92,8 +92,11 @@ body .content { padding:0; }
                 <button class="btn-icon" onclick="document.getElementById('editorSidebar').classList.toggle('hide')" title="Toggle Sidebar" style="color:var(--text-muted);"><i class="fas fa-bars"></i></button>
                 <strong id="editorFileName"><i class="fas fa-file-code"></i> <?= sanitize($fileName) ?></strong>
                 <span class="badge badge-info" id="editorLang"><?= strtoupper($lang) ?></span>
+                <button class="btn-icon" onclick="renameFile()" title="Rename" style="color:var(--text-muted);font-size:12px;"><i class="fas fa-i-cursor"></i></button>
+                <button class="btn-icon del" onclick="deleteFile()" title="Delete" style="font-size:12px;"><i class="fas fa-trash"></i></button>
             </div>
             <div style="display:flex;gap:8px;">
+                <button class="btn btn-sm btn-info" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> New</button>
                 <button class="btn btn-sm btn-success" onclick="saveFile()"><i class="fas fa-save"></i> Save</button>
                 <a href="/panel/files.php?dir=<?= urlencode(dirname($file)) ?>" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
             </div>
@@ -117,6 +120,19 @@ body .content { padding:0; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/jump-to-line.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
+
+<div class="modal-overlay" id="newFileModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Buat File Baru</h3><button class="modal-close" onclick="closeNewFile()">&times;</button></div>
+        <div class="modal-body">
+            <div class="form-group"><label>Nama File</label><input type="text" class="form-control" id="newFileName" placeholder="contoh: style.css"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeNewFile()">Batal</button>
+            <button class="btn btn-primary" onclick="createFile()">Buat</button>
+        </div>
+    </div>
+</div>
 
 <script>
 let currentFile = <?= json_encode($file) ?>;
@@ -172,6 +188,59 @@ async function loadFile(path) {
         if (el) el.classList.add('active');
     } catch(e) {
         AHPL.toast('Error: ' + e.message, 'error');
+    }
+}
+
+function showNewFile() { document.getElementById('newFileName').value = ''; document.getElementById('newFileModal').classList.add('active'); setTimeout(function() { document.getElementById('newFileName').focus(); }, 150); }
+function closeNewFile() { document.getElementById('newFileModal').classList.remove('active'); }
+
+async function createFile() {
+    const name = document.getElementById('newFileName').value.trim();
+    if (!name) return AHPL.toast('Masukkan nama file', 'error');
+    const res = await AHPL.api('/panel/api/file.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+        body: JSON.stringify({ action: 'create_file', dir: currentPath, name })
+    });
+    if (res.success) {
+        AHPL.toast('File dibuat!');
+        closeNewFile();
+        loadFile(res.path);
+    } else {
+        AHPL.toast(res.error || 'Gagal', 'error');
+    }
+}
+
+function renameFile() {
+    var name = prompt('Nama file baru:', currentFile.split('/').pop());
+    if (!name || name === currentFile.split('/').pop()) return;
+    (async function() {
+        var res = await AHPL.api('/panel/api/file.php', {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+            body: JSON.stringify({ action: 'rename', path: currentFile, newName: name })
+        });
+        if (res.success) {
+            AHPL.toast('File direname');
+            var newPath = currentFile.substring(0, currentFile.lastIndexOf('/') + 1) + name;
+            loadFile(newPath);
+        } else {
+            AHPL.toast(res.error || 'Gagal rename', 'error');
+        }
+    })();
+}
+
+async function deleteFile() {
+    if (!confirm('Hapus file "' + currentFile.split('/').pop() + '"?')) return;
+    var res = await AHPL.api('/panel/api/file.php?path=' + encodeURIComponent(currentFile), {
+        method: 'DELETE',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }
+    });
+    if (res.success) {
+        AHPL.toast('File dihapus');
+        window.location = '/panel/files.php?dir=' + encodeURIComponent(currentPath);
+    } else {
+        AHPL.toast(res.error || 'Gagal hapus', 'error');
     }
 }
 

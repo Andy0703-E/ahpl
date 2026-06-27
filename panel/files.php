@@ -31,6 +31,7 @@ if (!isPathSafe($fullDir, $baseDir)) {
             <?php endforeach; ?>
         </div>
         <button class="btn btn-sm btn-primary" onclick="showUpload()"><i class="fas fa-upload"></i> Upload</button>
+        <button class="btn btn-sm btn-info" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> New File</button>
         <button class="btn btn-sm btn-success" onclick="showNewFolder()"><i class="fas fa-folder-plus"></i> Folder</button>
         <button class="btn btn-sm btn-warning" onclick="showZipUpload()"><i class="fas fa-file-zipper"></i> Upload ZIP</button>
     </div>
@@ -144,6 +145,19 @@ if (!isPathSafe($fullDir, $baseDir)) {
     </div>
 </div>
 
+<div class="modal-overlay" id="newFileModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Buat File Baru</h3><button class="modal-close" onclick="closeModal('newFileModal')">&times;</button></div>
+        <div class="modal-body">
+            <div class="form-group"><label>Nama File</label><input type="text" class="form-control" id="newFileName" placeholder="contoh: index.html"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('newFileModal')">Batal</button>
+            <button class="btn btn-primary" onclick="createFile()">Buat</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="renameModal">
     <div class="modal">
         <div class="modal-header"><h3>Rename</h3><button class="modal-close" onclick="closeModal('renameModal')">&times;</button></div>
@@ -163,6 +177,29 @@ const currentDir = '<?= addslashes($currentDir) ?>';
 function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 function showUpload() { document.getElementById('uploadModal').classList.add('active'); }
 function showNewFolder() { document.getElementById('folderName').value = ''; document.getElementById('folderModal').classList.add('active'); }
+function showNewFile() { document.getElementById('newFileName').value = ''; document.getElementById('newFileModal').classList.add('active'); }
+
+async function createFile() {
+    const name = document.getElementById('newFileName').value.trim();
+    if (!name) return AHPL.toast('Masukkan nama file', 'error');
+    const res = await AHPL.api('/panel/api/file.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+        body: JSON.stringify({ action: 'create_file', dir: currentDir, name })
+    });
+    if (res.success) {
+        AHPL.toast('File dibuat!');
+        closeModal('newFileModal');
+        const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+        if (['html','htm','css','js','php','json','txt'].includes(ext)) {
+            window.location = '/panel/editor.php?file=' + encodeURIComponent(res.path);
+        } else {
+            setTimeout(() => location.reload(), 400);
+        }
+    } else {
+        AHPL.toast(res.error || 'Gagal', 'error');
+    }
+}
 
 async function deleteItem(path, name) {
     if (!AHPL.confirm('Hapus "' + name + '"?')) return;
