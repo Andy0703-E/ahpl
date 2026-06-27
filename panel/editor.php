@@ -43,9 +43,11 @@ if (!empty($file)) {
 
 <style>
 body .sidebar, body .topbar { display:none; }
+body .layout, body .main-content, body .content { height:100vh; overflow:hidden; }
 body .main-content { margin-left:0; }
 body .content { padding:0; }
-#editorLayout { margin:0; height:100vh; }
+#editorLayout { margin:0; height:100vh; overflow:hidden; }
+#editorSidebar { height:100vh; }
 #editorMain { height:100vh; }
 #editorToolbar { padding:8px 16px; }
 #editor .CodeMirror { min-height:calc(100vh - 42px) !important; }
