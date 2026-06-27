@@ -15,8 +15,18 @@ echo "[2/4] Inisialisasi database directory..."
 mysql_install_db --datadir=$PREFIX/var/lib/mysql 2>/dev/null || true
 
 echo "[3/4] Setup database & user..."
+# Matikan proses mysqld yang mungkin masih berjalan
+PIDFILE="$PREFIX/var/run/mysqld.pid"
+if [ -f "$PIDFILE" ]; then
+    kill $(cat "$PIDFILE") 2>/dev/null || true
+    sleep 1
+fi
+pkill -f mariadbd 2>/dev/null || true
+pkill -f mysqld 2>/dev/null || true
+sleep 1
+
 # Hapus socket/lock dari run sebelumnya jika ada
-rm -f $PREFIX/var/run/mysqld.sock $PREFIX/var/run/mysqld.sock.lock 2>/dev/null || true
+rm -f $PREFIX/var/run/mysqld.sock $PREFIX/var/run/mysqld.sock.lock $PIDFILE 2>/dev/null || true
 
 # Jalankan MariaDB di background
 mysqld_safe --skip-grant-tables &
