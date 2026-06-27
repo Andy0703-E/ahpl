@@ -39,7 +39,7 @@ if (!isPathSafe($fullDir, $baseDir)) {
     <ul class="fm-list">
         <?php if ($currentDir !== '/'): ?>
             <?php $parent = dirname($currentDir); if ($parent === '.') $parent = '/'; ?>
-            <li class="fm-item" ondblclick="window.location='/panel/files.php?dir=<?= urlencode($parent) ?>'">
+            <li class="fm-item" onclick="window.location='/panel/files.php?dir=<?= urlencode($parent) ?>'">
                 <div class="fm-icon folder"><i class="fas fa-arrow-up"></i></div>
                 <span class="fm-name">..</span>
                 <span class="fm-meta">Parent</span>
@@ -73,7 +73,7 @@ if (!isPathSafe($fullDir, $baseDir)) {
             <div class="empty-state"><div class="icon"><i class="fas fa-folder-open"></i></div><h3>Kosong</h3></div>
         <?php else: ?>
             <?php foreach ($items as $item): ?>
-                <li class="fm-item" <?= $item['is_dir'] ? 'ondblclick="window.location=\'/panel/files.php?dir=' . urlencode($item['path']) . '\'"' : '' ?>>
+                <li class="fm-item" <?= $item['is_dir'] ? 'onclick="window.location=\'/panel/files.php?dir=' . urlencode($item['path']) . '\'"' : '' ?>>
                     <?php
                     $icon = 'file'; $fa = 'fa-file';
                     if ($item['is_dir']) { $icon = 'folder'; $fa = 'fa-folder'; }
@@ -85,7 +85,7 @@ if (!isPathSafe($fullDir, $baseDir)) {
                     <span class="fm-name"><?= sanitize($item['name']) ?></span>
                     <span class="fm-meta"><?= $item['is_dir'] ? 'Folder' : formatSize($item['size']) ?></span>
                     <span class="fm-meta"><?= $item['modified'] ?></span>
-                    <div class="fm-actions">
+                    <div class="fm-actions" onclick="event.stopPropagation()">
                         <?php if (!$item['is_dir']): ?>
                             <a href="/panel/api/download.php?path=<?= urlencode($item['path']) ?>" class="btn-icon" title="Download"><i class="fas fa-download"></i></a>
                             <?php if (in_array($item['ext'], ['html','htm','css','js','php','json','txt'])): ?>
