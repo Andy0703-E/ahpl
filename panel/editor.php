@@ -62,7 +62,6 @@ body .content { padding:0; }
                 <button class="btn-icon" onclick="showNewFile()" title="New File" style="color:var(--primary);font-size:12px;"><i class="fas fa-file-circle-plus"></i></button>
                 <button class="btn-icon" onclick="renameFile()" title="Rename" style="color:var(--text-muted);font-size:11px;"><i class="fas fa-i-cursor"></i></button>
                 <button class="btn-icon del" onclick="deleteFile()" title="Delete" style="font-size:11px;"><i class="fas fa-trash"></i></button>
-                <button class="btn-icon" onclick="treeToggleAll()" title="Expand All" style="color:var(--text-muted);font-size:11px;"><i class="fas fa-expand"></i></button>
             </div>
         </div>
         <div id="fileTree"><?= $treeHtml ?></div>
@@ -138,16 +137,6 @@ function treeToggle(el) {
     var li = el.parentElement;
     li.classList.toggle('expanded');
     el.innerHTML = li.classList.contains('expanded') ? '&#9662;' : '&#9656;';
-}
-
-function treeToggleAll() {
-    var all = document.querySelectorAll('.tree-folder');
-    var anyClosed = false;
-    all.forEach(function(f) { if (!f.classList.contains('expanded')) anyClosed = true; });
-    all.forEach(function(f) {
-        if (anyClosed) { f.classList.add('expanded'); f.querySelector('.tree-toggle').innerHTML = '&#9662;'; }
-        else { f.classList.remove('expanded'); f.querySelector('.tree-toggle').innerHTML = '&#9656;'; }
-    });
 }
 
 async function refreshTree() {
