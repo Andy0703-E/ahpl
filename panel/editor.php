@@ -33,7 +33,7 @@ function buildTreeHtml($dir, $basePath, $currentFile) {
         $full = $dir . '/' . $item;
         $rel = ltrim($basePath . '/' . $item, '/');
         if (is_dir($full)) {
-            $html .= '<li class="tree-folder"><span class="tree-toggle" onclick="treeToggle(this)">&#9654;</span> <span class="tree-name">' . htmlspecialchars($item) . '</span>';
+            $html .= '<li class="tree-folder"><span class="tree-toggle" onclick="treeToggle(this)">&#9656;</span> <span class="tree-name">' . htmlspecialchars($item) . '</span>';
             $html .= buildTreeHtml($full, $rel, $currentFile);
             $html .= '</li>';
         } else {
@@ -43,7 +43,7 @@ function buildTreeHtml($dir, $basePath, $currentFile) {
             $active = ($rel === $currentFile) ? ' active' : '';
             $iconMap = ['html'=>'<i class="fas fa-file-code" style="color:#e44d26"></i>','htm'=>'<i class="fas fa-file-code" style="color:#e44d26"></i>','css'=>'<i class="fas fa-file-code" style="color:#264de4"></i>','js'=>'<i class="fas fa-file-code" style="color:#f7df1e"></i>','php'=>'<i class="fas fa-file-code" style="color:#8892bf"></i>','json'=>'<i class="fas fa-file-code" style="color:#28a745"></i>'];
             $icon = $iconMap[$ext] ?? '<i class="fas fa-file"></i>';
-            $html .= '<li class="tree-file' . $active . '" onclick="loadFile(\'' . htmlspecialchars($rel) . '\')">' . $icon . ' ' . htmlspecialchars($item) . '</li>';
+            $html .= '<li class="tree-file' . $active . '" data-path="' . htmlspecialchars($rel) . '" onclick="loadFile(\'' . htmlspecialchars($rel) . '\')">' . $icon . ' ' . htmlspecialchars($item) . '</li>';
         }
     }
     $html .= '</ul>';
@@ -132,7 +132,7 @@ editor.setOption('extraKeys', {
 function treeToggle(el) {
     var li = el.parentElement;
     li.classList.toggle('expanded');
-    el.textContent = li.classList.contains('expanded') ? '&#9660;' : '&#9654;';
+    el.innerHTML = li.classList.contains('expanded') ? '&#9662;' : '&#9656;';
 }
 
 function treeToggleAll() {
@@ -140,8 +140,8 @@ function treeToggleAll() {
     var anyClosed = false;
     all.forEach(function(f) { if (!f.classList.contains('expanded')) anyClosed = true; });
     all.forEach(function(f) {
-        if (anyClosed) { f.classList.add('expanded'); f.querySelector('.tree-toggle').textContent = '&#9660;'; }
-        else { f.classList.remove('expanded'); f.querySelector('.tree-toggle').textContent = '&#9654;'; }
+        if (anyClosed) { f.classList.add('expanded'); f.querySelector('.tree-toggle').innerHTML = '&#9662;'; }
+        else { f.classList.remove('expanded'); f.querySelector('.tree-toggle').innerHTML = '&#9656;'; }
     });
 }
 
@@ -150,17 +150,15 @@ async function loadFile(path) {
         var res = await fetch('/panel/api/file.php?action=read&path=' + encodeURIComponent(path));
         var data = await res.json();
         if (!data.success) { AHPL.toast('Gagal buka file', 'error'); return; }
-        if (editor.getValue().trim() !== <?= json_encode($content) ?>.trim()) {
-            if (!confirm('File belum disimpan. Lanjutkan?')) return;
-        }
         editor.setValue(data.content);
         editor.setOption('mode', data.lang);
+        editor.clearHistory();
         document.getElementById('editorFileName').innerHTML = '<i class="fas fa-file-code"></i> ' + data.name;
         document.getElementById('editorLang').textContent = data.lang.toUpperCase();
         currentFile = path;
         document.querySelectorAll('.tree-file.active').forEach(function(e) { e.classList.remove('active'); });
-        var activeEl = document.querySelector('.tree-file[onclick*="' + path.replace(/'/g, "\\'") + '"]');
-        if (activeEl) activeEl.classList.add('active');
+        var el = document.querySelector('.tree-file[data-path="' + path.replace(/"/g, '\\"') + '"]');
+        if (el) el.classList.add('active');
     } catch(e) {
         AHPL.toast('Error: ' + e.message, 'error');
     }
