@@ -1,4 +1,5 @@
 <?php
+session_name('POS_SESSION');
 session_start();
 
 define('DB_HOST', '127.0.0.1');
