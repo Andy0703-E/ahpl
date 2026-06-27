@@ -250,6 +250,11 @@ if ($method === 'POST') {
             jsonResponse(['error' => 'require_confirm: Konfirmasi diperlukan untuk query write', 'require_confirm' => true], 400);
         }
 
+        // FLUSH PRIVILEGES dulu biar CREATE USER/GRANT bisa jalan walau --skip-grant-tables
+        if ($isWrite && $dbType === 'mariadb') {
+            try { getMariaDB()->exec("FLUSH PRIVILEGES"); } catch (Exception $e) {}
+        }
+
         $start = microtime(true);
         try {
             if ($isRead) {
