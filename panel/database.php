@@ -3,6 +3,16 @@ $pageTitle = 'Database Manager';
 require_once __DIR__ . '/includes/header.php';
 ?>
 
+<div id="dbInfoCard" class="card" style="margin-bottom:18px;display:none;">
+    <div class="card-body" style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;">
+        <span><strong>Type:</strong> <span id="dbInfoType">-</span></span>
+        <span><strong>Version:</strong> <span id="dbInfoVersion">-</span></span>
+        <span><strong>Tables:</strong> <span id="dbInfoTables">-</span></span>
+        <span><strong>Size:</strong> <span id="dbInfoSize">-</span></span>
+        <span id="dbInfoUptimeRow" style="display:none;"><strong>Uptime:</strong> <span id="dbInfoUptime">-</span></span>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         <h3><i class="fas fa-table"></i> Tables</h3>
@@ -12,7 +22,8 @@ require_once __DIR__ . '/includes/header.php';
                 <button class="db-switch-btn" data-type="mariadb" onclick="switchDB('mariadb')"><i class="fas fa-server"></i> MariaDB</button>
             </div>
             <span id="dbStatus" style="font-size:11px;color:#888;display:none;"></span>
-            <button class="btn btn-sm btn-info" onclick="openQuery()"><i class="fas fa-terminal"></i> SQL Query</button>
+            <button class="btn btn-sm btn-success" onclick="openCreateTable()" title="Create Table"><i class="fas fa-plus"></i> Table</button>
+            <button class="btn btn-sm btn-info" onclick="openQuery()"><i class="fas fa-terminal"></i> SQL</button>
         </div>
     </div>
     <div class="card-body">
@@ -28,6 +39,7 @@ require_once __DIR__ . '/includes/header.php';
                 <button class="btn btn-sm btn-success" onclick="addRow()"><i class="fas fa-plus"></i> Tambah</button>
                 <button class="btn btn-sm btn-outline" onclick="showSchema()"><i class="fas fa-info-circle"></i> Schema</button>
                 <button class="btn btn-sm btn-outline" onclick="exportCSV()"><i class="fas fa-file-csv"></i> CSV</button>
+                <button class="btn btn-sm btn-warning" onclick="truncateTable()"><i class="fas fa-eraser"></i> Truncate</button>
                 <button class="btn btn-sm btn-outline" onclick="closeTable()"><i class="fas fa-times"></i> Tutup</button>
             </div>
         </div>
@@ -77,6 +89,78 @@ require_once __DIR__ . '/includes/header.php';
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeDeleteModal()">Batal</button>
             <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus</button>
+        </div>
+    </div>
+</div>
+
+<div id="createTableModal" class="modal-overlay">
+    <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle"></i> Buat Table Baru</h3>
+            <button class="modal-close" onclick="closeCreateTable()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Nama Table</label>
+                <input type="text" class="form-control" id="newTableName" placeholder="contoh: users">
+            </div>
+            <div style="font-size:12px;color:#888;margin-bottom:8px;">Columns:</div>
+            <div id="newTableColumns">
+                <div class="ct-col" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+                    <input type="text" class="form-control" style="width:140px;font-size:12px;" placeholder="nama" value="id">
+                    <select class="form-control" style="width:110px;font-size:12px;">
+                        <option>INT</option>
+                        <option selected>TEXT</option>
+                        <option>VARCHAR(255)</option>
+                        <option>DATETIME</option>
+                        <option>BOOLEAN</option>
+                        <option>FLOAT</option>
+                    </select>
+                    <label style="font-size:11px;white-space:nowrap;"><input type="checkbox" checked> PK</label>
+                    <label style="font-size:11px;white-space:nowrap;"><input type="checkbox" checked> AI</label>
+                    <label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> NN</label>
+                    <button class="btn-icon del" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="addColumnDef()"><i class="fas fa-plus"></i> Column</button>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeCreateTable()">Batal</button>
+            <button class="btn btn-primary" onclick="confirmCreateTable()"><i class="fas fa-check"></i> Buat</button>
+        </div>
+    </div>
+</div>
+
+<div id="dropTableModal" class="modal-overlay">
+    <div class="modal" style="max-width:400px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-trash" style="color:var(--danger);"></i> Hapus Table</h3>
+            <button class="modal-close" onclick="closeDropTable()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:14px;margin-bottom:6px;">Yakin ingin menghapus table <strong id="dropTableName"></strong>?</p>
+            <p style="font-size:12px;color:var(--danger);">Semua data akan hilang permanen!</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeDropTable()">Batal</button>
+            <button class="btn btn-danger" onclick="confirmDropTable()"><i class="fas fa-trash"></i> Hapus</button>
+        </div>
+    </div>
+</div>
+
+<div id="truncateTableModal" class="modal-overlay">
+    <div class="modal" style="max-width:400px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-eraser" style="color:var(--warning);"></i> Truncate Table</h3>
+            <button class="modal-close" onclick="closeTruncateTable()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:14px;margin-bottom:6px;">Yakin ingin mengosongkan table <strong id="truncateTableName"></strong>?</p>
+            <p style="font-size:12px;color:var(--warning);">Semua baris akan dihapus, tapi struktur table tetap ada.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeTruncateTable()">Batal</button>
+            <button class="btn btn-warning" onclick="confirmTruncateTable()"><i class="fas fa-eraser"></i> Truncate</button>
         </div>
     </div>
 </div>
@@ -137,14 +221,17 @@ async function switchDB(type) {
             statusEl.className = 'connected';
             statusEl.innerHTML = '<i class="fas fa-check-circle"></i> MariaDB terhubung';
             loadTables();
+            loadDbInfo();
         } catch (e) {
             statusEl.className = 'error';
             statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> MariaDB: ' + AHPL.escapeHtml(e.message);
             document.getElementById('tablesContainer').innerHTML = '<p style="color:var(--danger);font-size:13px;">Gagal terhubung ke MariaDB: ' + AHPL.escapeHtml(e.message) + '</p>';
+            document.getElementById('dbInfoCard').style.display = 'none';
         }
     } else {
         statusEl.style.display = 'none';
         loadTables();
+        loadDbInfo();
     }
 }
 
@@ -158,7 +245,7 @@ async function loadTables() {
             return;
         }
         el.innerHTML = '<table class="table"><thead><tr><th>Tabel</th><th>Rows</th><th>Aksi</th></tr></thead><tbody>' +
-            res.tables.map(t => '<tr><td style="font-weight:600;"><i class="fas fa-table" style="color:var(--primary);margin-right:8px;"></i>' + AHPL.escapeHtml(t.name) + '</td><td>' + t.row_count + '</td><td><button class="btn btn-sm btn-info" onclick="viewTable(\'' + t.name + '\')"><i class="fas fa-eye"></i></button></td></tr>').join('') +
+            res.tables.map(t => '<tr><td style="font-weight:600;"><i class="fas fa-table" style="color:var(--primary);margin-right:8px;"></i>' + AHPL.escapeHtml(t.name) + '</td><td>' + t.row_count + '</td><td style="white-space:nowrap;"><button class="btn btn-sm btn-info" onclick="viewTable(\'' + t.name + '\')" title="View"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-danger" onclick="dropTable(\'' + t.name + '\')" title="Drop"><i class="fas fa-trash"></i></button></td></tr>').join('') +
             '</tbody></table>';
     } catch (e) {
         document.getElementById('tablesContainer').innerHTML = '<p style="color:var(--danger);font-size:13px;">Gagal memuat tabel: ' + AHPL.escapeHtml(e.message) + '</p>';
@@ -434,6 +521,123 @@ async function executeWriteQuery() {
     } catch (e) {
         resultDiv.innerHTML = '<div style="padding:12px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:13px;"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(e.message) + '</div>';
     }
+}
+
+// --- DB Info ---
+async function loadDbInfo() {
+    try {
+        var res = await AHPL.api('/panel/api/database.php?action=db_info&' + getDBParam());
+        if (!res.info) return;
+        var info = res.info;
+        document.getElementById('dbInfoCard').style.display = 'block';
+        document.getElementById('dbInfoType').textContent = info.type.toUpperCase();
+        document.getElementById('dbInfoVersion').textContent = info.version || '-';
+        document.getElementById('dbInfoTables').textContent = info.table_count || '0';
+        document.getElementById('dbInfoSize').textContent = (info.size_kb || '0') + ' KB';
+        if (info.uptime && info.uptime > 0) {
+            document.getElementById('dbInfoUptimeRow').style.display = 'inline';
+            var days = Math.floor(info.uptime / 86400);
+            var hours = Math.floor((info.uptime % 86400) / 3600);
+            var mins = Math.floor((info.uptime % 3600) / 60);
+            document.getElementById('dbInfoUptime').textContent = (days > 0 ? days + 'd ' : '') + hours + 'h ' + mins + 'm';
+        } else {
+            document.getElementById('dbInfoUptimeRow').style.display = 'none';
+        }
+    } catch (e) {}
+}
+
+// --- Drop Table ---
+var _dropTable = null;
+function dropTable(name) {
+    _dropTable = name;
+    document.getElementById('dropTableName').textContent = name;
+    document.getElementById('dropTableModal').classList.add('active');
+}
+function closeDropTable() { document.getElementById('dropTableModal').classList.remove('active'); _dropTable = null; }
+async function confirmDropTable() {
+    if (!_dropTable) return;
+    try {
+        var res = await AHPL.api('/panel/api/database.php', {
+            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+            body: JSON.stringify({ action: 'drop_table', table: _dropTable, db_type: dbType })
+        });
+        if (res.success) { AHPL.toast('Table ' + _dropTable + ' dihapus'); closeDropTable(); loadTables(); loadDbInfo(); }
+    } catch (e) { AHPL.toast(e.message, 'error'); }
+}
+
+// --- Truncate Table ---
+var _truncateTable = null;
+function truncateTable() {
+    if (!currentTable) return;
+    _truncateTable = currentTable;
+    document.getElementById('truncateTableName').textContent = currentTable;
+    document.getElementById('truncateTableModal').classList.add('active');
+}
+function closeTruncateTable() { document.getElementById('truncateTableModal').classList.remove('active'); _truncateTable = null; }
+async function confirmTruncateTable() {
+    if (!_truncateTable) return;
+    try {
+        var res = await AHPL.api('/panel/api/database.php', {
+            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+            body: JSON.stringify({ action: 'truncate_table', table: _truncateTable, db_type: dbType })
+        });
+        if (res.success) { AHPL.toast('Table ' + _truncateTable + ' dikosongkan'); closeTruncateTable(); viewTable(currentTable, currentPage); loadTables(); }
+    } catch (e) { AHPL.toast(e.message, 'error'); }
+}
+
+// --- Create Table ---
+function openCreateTable() {
+    document.getElementById('newTableName').value = '';
+    document.getElementById('newTableColumns').innerHTML = '';
+    addColumnDef();
+    document.getElementById('createTableModal').classList.add('active');
+}
+function closeCreateTable() { document.getElementById('createTableModal').classList.remove('active'); }
+function addColumnDef() {
+    var cont = document.getElementById('newTableColumns');
+    var idx = cont.children.length;
+    var div = document.createElement('div');
+    div.className = 'ct-col';
+    div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+    div.innerHTML =
+        '<input type="text" class="form-control" style="width:140px;font-size:12px;" placeholder="nama" value="column' + (idx + 1) + '">' +
+        '<select class="form-control" style="width:110px;font-size:12px;">' +
+            '<option>TEXT</option><option>INT</option><option>VARCHAR(255)</option><option>DATETIME</option><option>BOOLEAN</option><option>FLOAT</option>' +
+        '</select>' +
+        '<label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> PK</label>' +
+        '<label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> AI</label>' +
+        '<label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> NN</label>' +
+        '<button class="btn-icon del" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>';
+    cont.appendChild(div);
+}
+async function confirmCreateTable() {
+    var name = document.getElementById('newTableName').value.trim();
+    if (!name) { AHPL.toast('Nama table wajib diisi', 'error'); return; }
+    var colDivs = document.querySelectorAll('#newTableColumns .ct-col');
+    var columns = [];
+    colDivs.forEach(function(d) {
+        var inputs = d.querySelectorAll('input[type=text], select');
+        if (inputs.length < 2) return;
+        var colName = inputs[0].value.trim();
+        var colType = inputs[1].value;
+        if (!colName) return;
+        var chks = d.querySelectorAll('input[type=checkbox]');
+        columns.push({
+            name: colName,
+            type: colType,
+            pk: chks[0] ? chks[0].checked : false,
+            auto: chks[1] ? chks[1].checked : false,
+            notnull: chks[2] ? chks[2].checked : false,
+        });
+    });
+    if (columns.length === 0) { AHPL.toast('Minimal 1 kolom', 'error'); return; }
+    try {
+        var res = await AHPL.api('/panel/api/database.php', {
+            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+            body: JSON.stringify({ action: 'create_table', table: name, columns: columns, db_type: dbType })
+        });
+        if (res.success) { AHPL.toast('Table ' + name + ' dibuat!'); closeCreateTable(); loadTables(); loadDbInfo(); }
+    } catch (e) { AHPL.toast(e.message, 'error'); }
 }
 
 document.addEventListener('DOMContentLoaded', loadTables);

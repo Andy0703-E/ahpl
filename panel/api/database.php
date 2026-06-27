@@ -72,6 +72,35 @@ if ($method === 'GET') {
         }
     }
 
+    if ($action === 'db_info') {
+        $info = ['type' => $dbType, 'name' => $dbType === 'mariadb' ? MARIADB_NAME : 'SQLite'];
+        if ($dbType === 'mariadb') {
+            try {
+                $pdo = getMariaDB();
+                $stmt = $pdo->query("SELECT VERSION() AS ver");
+                $info['version'] = $stmt->fetchColumn();
+                $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote(MARIADB_NAME));
+                $info['table_count'] = (int)$stmt->fetchColumn();
+                $stmt = $pdo->query("SELECT ROUND(SUM(data_length + index_length) / 1024, 1) FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote(MARIADB_NAME));
+                $info['size_kb'] = (float)$stmt->fetchColumn();
+                $stmt = $pdo->query("SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Uptime'");
+                $uptime = $stmt->fetchColumn();
+                $info['uptime'] = $uptime ? (int)$uptime : 0;
+            } catch (Exception $e) {
+                $info['error'] = $e->getMessage();
+            }
+        } else {
+            $db = getDB();
+            $info['version'] = SQLite3::version()['versionString'];
+            $res = $db->query("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+            $info['table_count'] = (int)$res->fetchArray(SQLITE3_NUM)[0];
+            $size = @filesize(dirname(__DIR__, 2) . '/storage/database/ahpl.db');
+            $info['size_kb'] = $size ? round($size / 1024, 1) : 0;
+            $info['uptime'] = 0;
+        }
+        jsonResponse(['success' => true, 'info' => $info]);
+    }
+
     if ($action === 'export_csv') {
         $table = $_GET['table'] ?? '';
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) {
@@ -269,6 +298,70 @@ if ($method === 'POST') {
                     'elapsed' => $elapsed,
                 ]);
             }
+        } catch (Exception $e) {
+            jsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    if ($action === 'drop_table') {
+        $table = $input['table'] ?? '';
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table name'], 400);
+        try {
+            if ($dbType === 'mariadb') {
+                getMariaDB()->exec("DROP TABLE `$table`");
+            } else {
+                getDB()->exec("DROP TABLE \"$table\"");
+            }
+            logAction('db_drop_table', "DROP TABLE $table");
+            jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    if ($action === 'truncate_table') {
+        $table = $input['table'] ?? '';
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table name'], 400);
+        try {
+            if ($dbType === 'mariadb') {
+                getMariaDB()->exec("TRUNCATE TABLE `$table`");
+            } else {
+                getDB()->exec("DELETE FROM \"$table\"");
+            }
+            logAction('db_truncate_table', "TRUNCATE TABLE $table");
+            jsonResponse(['success' => true]);
+        } catch (Exception $e) {
+            jsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    if ($action === 'create_table') {
+        $table = $input['table'] ?? '';
+        $columns = $input['columns'] ?? [];
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table name'], 400);
+        if (empty($columns)) jsonResponse(['error' => 'Columns required'], 400);
+        try {
+            $defs = [];
+            foreach ($columns as $col) {
+                $name = $col['name'] ?? '';
+                $type = $col['type'] ?? 'TEXT';
+                if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) continue;
+                $parts = [$name, $type];
+                if (!empty($col['pk'])) $parts[] = 'PRIMARY KEY';
+                if (!empty($col['auto'])) $parts[] = 'AUTO_INCREMENT';
+                if (!empty($col['notnull'])) $parts[] = 'NOT NULL';
+                if (isset($col['default'])) $parts[] = 'DEFAULT ' . (is_numeric($col['default']) ? $col['default'] : "'" . str_replace("'", "''", $col['default']) . "'");
+                $defs[] = implode(' ', $parts);
+            }
+            if (empty($defs)) jsonResponse(['error' => 'No valid columns'], 400);
+            $sql = "CREATE TABLE `$table` (" . implode(', ', $defs) . ")";
+            if ($dbType === 'mariadb') {
+                getMariaDB()->exec($sql . " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            } else {
+                getDB()->exec($sql);
+            }
+            logAction('db_create_table', "CREATE TABLE $table");
+            jsonResponse(['success' => true]);
         } catch (Exception $e) {
             jsonResponse(['error' => $e->getMessage()], 400);
         }
