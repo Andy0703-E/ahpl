@@ -33,6 +33,12 @@ if ($method === 'GET') {
         try {
             if ($dbType === 'mariadb') {
                 $pdo = getMariaDBWithDB($dbName);
+                // Cek apakah kita benar-benar terhubung ke database yang diminta
+                $curDB = $pdo->query("SELECT DATABASE()")->fetchColumn();
+                if ($curDB !== $dbName) {
+                    jsonResponse(['success' => true, 'tables' => []]);
+                    return;
+                }
                 $stmt = $pdo->query("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote($dbName) . " ORDER BY TABLE_NAME");
                 $tables = [];
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {

@@ -230,6 +230,7 @@ let currentTable = null, currentSchema = null, currentPage = 1;
 let editingRow = null, deletingRow = null;
 let _dropTable = null, _truncateTable = null;
 let currentDB = '<?= MARIADB_NAME ?>';
+let _structureLoaded = false;
 const PER_PAGE = 50;
 
 function dbp() { return 'db_type=mariadb&db_name=' + encodeURIComponent(currentDB); }
@@ -322,7 +323,11 @@ async function showStructure(table) {
   currentTable = table;
   document.getElementById('currentTableName').textContent = table;
   document.getElementById('tableViewer').style.display = 'block';
-  switchTab('structure');
+  document.getElementById('tabBrowse').className = 'tab-btn';
+  document.getElementById('tabStructure').className = 'tab-btn active';
+  document.getElementById('browseTab').style.display = 'none';
+  document.getElementById('structureTab').style.display = '';
+  _structureLoaded = true;
   try {
     var res = await AHPL.api('/panel/api/database.php?action=get_schema&table=' + encodeURIComponent(table) + '&' + dbp());
     currentSchema = res.schema;
@@ -392,7 +397,9 @@ function switchTab(tab) {
   document.getElementById('tabStructure').className = 'tab-btn' + (tab === 'structure' ? ' active' : '');
   document.getElementById('browseTab').style.display = tab === 'browse' ? '' : 'none';
   document.getElementById('structureTab').style.display = tab === 'structure' ? '' : 'none';
-  if (tab === 'structure' && currentTable) showStructure(currentTable);
+  if (tab === 'structure' && currentTable && !_structureLoaded) {
+    showStructure(currentTable);
+  }
 }
 
 function closeTable() { document.getElementById('tableViewer').style.display = 'none'; currentTable = null; currentSchema = null; }

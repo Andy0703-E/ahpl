@@ -16,11 +16,24 @@ function getMariaDB() {
 
 function getMariaDBWithDB($dbName) {
     $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";dbname=" . $dbName . ";charset=utf8mb4";
-    return new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+    try {
+        return new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+    } catch (PDOException $e) {
+        // Jika database tidak ditemukan (1049), fallback ke information_schema
+        if ($e->getCode() == 1049) {
+            $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";dbname=information_schema;charset=utf8mb4";
+            return new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        }
+        throw $e;
+    }
 }
 
 function getDBConnection($type) {
