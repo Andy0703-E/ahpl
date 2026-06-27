@@ -480,10 +480,29 @@ function startService($service) {
             $out = @shell_exec('php-fpm -R 2>&1');
             break;
         case 'mariadb':
+            $datadir = '/data/data/com.termux/files/usr/var/lib/mysql';
             $logFile = '/data/data/com.termux/files/usr/var/lib/mysql/mariadb-start.log';
-            @shell_exec('nohup mariadbd-safe --skip-grant-tables > ' . escapeshellarg($logFile) . ' 2>&1 &');
-            sleep(3);
-            break;
+            @file_put_contents($logFile, '');
+            if (!file_exists($datadir . '/mysql')) {
+                @shell_exec('mysql_install_db --datadir=' . escapeshellarg($datadir) . ' 2>/dev/null');
+            }
+            $pidfile = '/data/data/com.termux/files/usr/var/run/mysqld.pid';
+            @unlink('/data/data/com.termux/files/usr/var/run/mysqld.sock');
+            @unlink('/data/data/com.termux/files/usr/var/run/mysqld.sock.lock');
+            @unlink($pidfile);
+            $bin = is_executable('/data/data/com.termux/files/usr/bin/mariadbd-safe') ? 'mariadbd-safe' : 'mysqld_safe';
+            @shell_exec('nohup ' . $bin . ' --skip-grant-tables > ' . escapeshellarg($logFile) . ' 2>&1 &');
+            $socket = '/data/data/com.termux/files/usr/var/run/mysqld.sock';
+            for ($i = 0; $i < 15; $i++) {
+                if (file_exists($socket)) break;
+                sleep(1);
+            }
+            if (!file_exists($socket)) {
+                $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Tidak ada output';
+                return ['error' => 'Gagal start mariadb: ' . substr($err, 0, 300)];
+            }
+            sleep(1);
+            return ['success' => true, 'status' => 'running'];
         case 'cloudflared':
             $cfBin = null;
             $cfPaths = ['/data/data/com.termux/files/usr/bin/cloudflared', '/usr/bin/cloudflared', '/bin/cloudflared'];
