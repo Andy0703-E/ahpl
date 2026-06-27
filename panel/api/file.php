@@ -19,8 +19,8 @@ if ($method === 'GET') {
         }
         $content = file_get_contents($full);
         $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
-        $map = ['html'=>'html','htm'=>'html','css'=>'css','js'=>'javascript','php'=>'php','json'=>'application/json'];
-        $lang = $map[$ext] ?? 'html';
+        $map = ['html'=>'htmlmixed','htm'=>'htmlmixed','css'=>'css','js'=>'javascript','php'=>'php','json'=>'application/json'];
+        $lang = $map[$ext] ?? 'htmlmixed';
         jsonResponse(['success' => true, 'content' => $content, 'lang' => $lang, 'name' => basename($full)]);
     }
 }

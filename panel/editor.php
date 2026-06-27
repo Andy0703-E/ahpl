@@ -18,8 +18,8 @@ if (!empty($file)) {
         $fileName = basename($full);
         $isFile = true;
         $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
-        $map = ['html'=>'html','htm'=>'html','css'=>'css','js'=>'javascript','php'=>'php','json'=>'application/json'];
-        $lang = $map[$ext] ?? 'html';
+        $map = ['html'=>'htmlmixed','htm'=>'htmlmixed','css'=>'css','js'=>'javascript','php'=>'php','json'=>'application/json'];
+        $lang = $map[$ext] ?? 'htmlmixed';
         $treeRoot = dirname($file);
     }
 }
