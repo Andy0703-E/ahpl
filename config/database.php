@@ -1,4 +1,5 @@
 <?php
+
 function getDB() {
     static $db = null;
     if ($db === null) {
@@ -7,6 +8,182 @@ function getDB() {
         $db->exec('PRAGMA journal_mode = WAL');
     }
     return $db;
+}
+
+function getMariaDB() {
+    static $pdo = null;
+    if ($pdo === null) {
+        $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";dbname=" . MARIADB_NAME . ";charset=utf8mb4";
+        $pdo = new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+    }
+    return $pdo;
+}
+
+function getDBConnection($type) {
+    if ($type === 'mariadb') {
+        return getMariaDB();
+    }
+    return getDB();
+}
+
+function dbListTables($type) {
+    if ($type === 'mariadb') {
+        $pdo = getMariaDB();
+        $stmt = $pdo->query("SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote(MARIADB_NAME) . " ORDER BY TABLE_NAME");
+        $tables = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $name = $row['TABLE_NAME'];
+            $countStmt = $pdo->query("SELECT COUNT(*) FROM `$name`");
+            $count = (int)$countStmt->fetchColumn();
+            $tables[] = ['name' => $name, 'row_count' => $count];
+        }
+        return $tables;
+    }
+
+    $db = getDB();
+    $tables = [];
+    $res = $db->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $count = $db->querySingle("SELECT COUNT(*) FROM \"" . $row['name'] . "\"");
+        $tables[] = ['name' => $row['name'], 'row_count' => (int)$count];
+    }
+    return $tables;
+}
+
+function dbGetSchema($type, $table) {
+    if ($type === 'mariadb') {
+        $pdo = getMariaDB();
+        $stmt = $pdo->prepare("SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE, COLUMN_DEFAULT AS dflt_value, COLUMN_KEY, ORDINAL_POSITION AS cid
+            FROM information_schema.columns WHERE TABLE_SCHEMA = :db AND TABLE_NAME = :table ORDER BY ORDINAL_POSITION");
+        $stmt->execute([':db' => MARIADB_NAME, ':table' => $table]);
+        $schema = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $schema[] = [
+                'cid' => (int)$row['cid'],
+                'name' => $row['name'],
+                'type' => $row['type'],
+                'notnull' => $row['IS_NULLABLE'] === 'NO' ? 1 : 0,
+                'dflt_value' => $row['dflt_value'],
+                'pk' => $row['COLUMN_KEY'] === 'PRI' ? 1 : 0,
+            ];
+        }
+        return $schema;
+    }
+
+    $db = getDB();
+    $schema = [];
+    $res = $db->query("PRAGMA table_info(\"$table\")");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $schema[] = [
+            'cid' => (int)$row['cid'],
+            'name' => $row['name'],
+            'type' => $row['type'],
+            'notnull' => (int)$row['notnull'],
+            'dflt_value' => $row['dflt_value'],
+            'pk' => (int)$row['pk'],
+        ];
+    }
+    return $schema;
+}
+
+function dbGetColumns($type, $table) {
+    $schema = dbGetSchema($type, $table);
+    return array_column($schema, 'name');
+}
+
+function dbGetRowCount($type, $table) {
+    if ($type === 'mariadb') {
+        $pdo = getMariaDB();
+        $stmt = $pdo->query("SELECT COUNT(*) FROM `$table`");
+        return (int)$stmt->fetchColumn();
+    }
+    $db = getDB();
+    return (int)$db->querySingle("SELECT COUNT(*) FROM \"$table\"");
+}
+
+function dbPrepareExecute($type, $sql, $params = [], $paramTypes = []) {
+    if ($type === 'mariadb') {
+        $pdo = getMariaDB();
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt;
+    }
+
+    $db = getDB();
+    $stmt = $db->prepare($sql);
+    foreach ($params as $key => $val) {
+        $typeConst = SQLITE3_TEXT;
+        if (isset($paramTypes[$key])) {
+            $typeConst = $paramTypes[$key];
+        } elseif (is_int($val)) {
+            $typeConst = SQLITE3_INTEGER;
+        } elseif (is_float($val)) {
+            $typeConst = SQLITE3_FLOAT;
+        } elseif (is_null($val)) {
+            $typeConst = SQLITE3_NULL;
+        }
+        $stmt->bindValue($key, $val, $typeConst);
+    }
+    $stmt->execute();
+    return $stmt;
+}
+
+function dbQuery($type, $sql) {
+    if ($type === 'mariadb') {
+        return getMariaDB()->query($sql);
+    }
+    return getDB()->query($sql);
+}
+
+function dbChanges($type) {
+    if ($type === 'mariadb') {
+        return 0; // PDO rowCount not reliable for all statements
+    }
+    return getDB()->changes();
+}
+
+function dbQuote($type, $name) {
+    if ($type === 'mariadb') {
+        return "`$name`";
+    }
+    return "\"$name\"";
+}
+
+function dbLastInsertId($type) {
+    if ($type === 'mariadb') {
+        return (int)getMariaDB()->lastInsertId();
+    }
+    return getDB()->lastInsertRowID();
+}
+
+function dbFetchAll($type, $stmt) {
+    if ($type === 'mariadb') {
+        return $stmt->fetchAll(PDO::FETCH_NUM);
+    }
+    $rows = [];
+    while ($row = $stmt->fetchArray(SQLITE3_NUM)) {
+        $rows[] = $row;
+    }
+    return $rows;
+}
+
+function dbColumnCount($type, $stmt) {
+    if ($type === 'mariadb') {
+        return $stmt->columnCount();
+    }
+    return $stmt->numColumns();
+}
+
+function dbColumnName($type, $stmt, $i) {
+    if ($type === 'mariadb') {
+        $meta = $stmt->getColumnMeta($i);
+        return $meta['name'];
+    }
+    return $stmt->columnName($i);
 }
 
 function initDatabase() {

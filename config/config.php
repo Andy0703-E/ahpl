@@ -31,6 +31,13 @@ if (!defined('DATABASE_PATH')) define('DATABASE_PATH', SERVER_PATH . '/database'
 if (!defined('LOGS_PATH')) define('LOGS_PATH', SERVER_PATH . '/logs');
 if (!defined('DB_FILE')) define('DB_FILE', DATABASE_PATH . '/ahpl.db');
 
+// MariaDB configuration (bisa di-override oleh local.php)
+if (!defined('MARIADB_HOST')) define('MARIADB_HOST', '127.0.0.1');
+if (!defined('MARIADB_PORT')) define('MARIADB_PORT', 3306);
+if (!defined('MARIADB_USER')) define('MARIADB_USER', 'root');
+if (!defined('MARIADB_PASS')) define('MARIADB_PASS', '');
+if (!defined('MARIADB_NAME')) define('MARIADB_NAME', 'ahpl');
+
 define('MAX_UPLOAD_SIZE', 100 * 1024 * 1024);
 define('TUNNEL_LOG', sys_get_temp_dir() . '/cloudflared.log');
 

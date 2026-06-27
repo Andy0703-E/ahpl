@@ -31,4 +31,17 @@ if ($action === 'change_password') {
     jsonResponse(['success' => true]);
 }
 
+if ($action === 'test_mariadb') {
+    try {
+        $pdo = getMariaDB();
+        $stmt = $pdo->query("SELECT VERSION()");
+        $version = $stmt->fetchColumn();
+        $stmt2 = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA = " . $pdo->quote(MARIADB_NAME));
+        $tables = (int)$stmt2->fetchColumn();
+        jsonResponse(['success' => true, 'version' => $version, 'tables' => $tables, 'database' => MARIADB_NAME]);
+    } catch (Exception $e) {
+        jsonResponse(['error' => 'Gagal terhubung: ' . $e->getMessage()], 400);
+    }
+}
+
 jsonResponse(['error' => 'Invalid'], 400);

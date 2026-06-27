@@ -6,7 +6,14 @@ require_once __DIR__ . '/includes/header.php';
 <div class="card">
     <div class="card-header">
         <h3><i class="fas fa-table"></i> Tables</h3>
-        <div><button class="btn btn-sm btn-info" onclick="openQuery()"><i class="fas fa-terminal"></i> SQL Query</button></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <div class="db-switcher" style="display:flex;gap:3px;background:var(--bg);padding:3px;border-radius:8px;margin-right:8px;">
+                <button class="db-switch-btn active" data-type="sqlite" onclick="switchDB('sqlite')"><i class="fas fa-database"></i> SQLite</button>
+                <button class="db-switch-btn" data-type="mariadb" onclick="switchDB('mariadb')"><i class="fas fa-server"></i> MariaDB</button>
+            </div>
+            <span id="dbStatus" style="font-size:11px;color:#888;display:none;"></span>
+            <button class="btn btn-sm btn-info" onclick="openQuery()"><i class="fas fa-terminal"></i> SQL Query</button>
+        </div>
     </div>
     <div class="card-body">
         <div id="tablesContainer"><p style="color:#888;font-size:13px;">Memuat tabel...</p></div>
@@ -92,18 +99,59 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </div>
 
+<style>
+#dbStatus { font-size:11px; animation: fadeIn 0.3s; }
+#dbStatus.connected { color:var(--success); }
+#dbStatus.error { color:var(--danger); }
+</style>
+
 <script>
 let currentTable = null;
 let currentSchema = null;
 let currentPage = 1;
 let editingRow = null;
 let deletingRow = null;
+let dbType = 'sqlite';
 const PER_PAGE = 50;
+
+function getDBParam() { return 'db_type=' + dbType; }
+
+// --- DB Switcher ---
+async function switchDB(type) {
+    dbType = type;
+    document.querySelectorAll('.db-switch-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelector('.db-switch-btn[data-type="' + type + '"]').classList.add('active');
+
+    var statusEl = document.getElementById('dbStatus');
+    statusEl.style.display = 'inline-flex';
+    statusEl.className = '';
+    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghubungi...';
+
+    document.getElementById('tablesContainer').innerHTML = '<p style="color:#888;font-size:13px;">Memuat tabel...</p>';
+    document.getElementById('tableViewer').style.display = 'none';
+    currentTable = null;
+
+    if (type === 'mariadb') {
+        try {
+            await AHPL.api('/panel/api/database.php?action=list_tables&' + getDBParam());
+            statusEl.className = 'connected';
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> MariaDB terhubung';
+            loadTables();
+        } catch (e) {
+            statusEl.className = 'error';
+            statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> MariaDB: ' + AHPL.escapeHtml(e.message);
+            document.getElementById('tablesContainer').innerHTML = '<p style="color:var(--danger);font-size:13px;">Gagal terhubung ke MariaDB: ' + AHPL.escapeHtml(e.message) + '</p>';
+        }
+    } else {
+        statusEl.style.display = 'none';
+        loadTables();
+    }
+}
 
 // --- Tables ---
 async function loadTables() {
     try {
-        const res = await AHPL.api('/panel/api/database.php?action=list_tables');
+        const res = await AHPL.api('/panel/api/database.php?action=list_tables&' + getDBParam());
         const el = document.getElementById('tablesContainer');
         if (!res.tables || !res.tables.length) {
             el.innerHTML = '<p style="color:#888;font-size:13px;">Tidak ada tabel</p>';
@@ -127,10 +175,9 @@ async function viewTable(table, page) {
     document.getElementById('tableContent').innerHTML = '<p style="color:#888;font-size:13px;">Memuat data...</p>';
 
     try {
-        const res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + encodeURIComponent(table) + '&page=' + page + '&per_page=' + PER_PAGE);
+        const res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + encodeURIComponent(table) + '&page=' + page + '&per_page=' + PER_PAGE + '&' + getDBParam());
         currentSchema = res.schema;
 
-        // Find PK column
         var pkCol = null;
         for (var i = 0; i < res.schema.length; i++) { if (res.schema[i].pk) { pkCol = res.schema[i]; break; } }
 
@@ -182,7 +229,7 @@ function closeTable() { document.getElementById('tableViewer').style.display = '
 async function showSchema() {
     if (!currentTable) return;
     try {
-        var res = await AHPL.api('/panel/api/database.php?action=get_schema&table=' + encodeURIComponent(currentTable));
+        var res = await AHPL.api('/panel/api/database.php?action=get_schema&table=' + encodeURIComponent(currentTable) + '&' + getDBParam());
         document.getElementById('schemaTableName').textContent = currentTable;
         document.getElementById('schemaContent').innerHTML = '<table class="table"><thead><tr><th>#</th><th>Column</th><th>Type</th><th>Nullable</th><th>Default</th><th>PK</th></tr></thead><tbody>' +
             res.schema.map(function(s) { return '<tr><td>' + s.cid + '</td><td style="font-weight:600;">' + AHPL.escapeHtml(s.name) + '</td><td><code>' + AHPL.escapeHtml(s.type || 'N/A') + '</code></td><td>' + (s.notnull ? '<span class="badge badge-danger">NO</span>' : '<span class="badge badge-success">YES</span>') + '</td><td style="font-style:italic;color:#888;">' + (s.dflt_value !== null ? AHPL.escapeHtml(s.dflt_value) : '\u2014') + '</td><td>' + (s.pk ? '<span class="badge badge-info">PK</span>' : '') + '</td></tr>'; }).join('') +
@@ -241,7 +288,7 @@ function addRow() {
 // --- Edit Row ---
 async function editRow(table, idCol, idVal) {
     try {
-        var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + table + '&page=1&per_page=10000000');
+        var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + table + '&page=1&per_page=10000000&' + getDBParam());
         var idx = res.columns.indexOf(idCol);
         if (idx < 0) { AHPL.toast('Kolom ID tidak ditemukan', 'error'); return; }
         var rowData = null;
@@ -265,17 +312,27 @@ function closeRowModal() { document.getElementById('rowModal').classList.remove(
 async function saveRow() {
     var data = getFormData(editingRow ? editingRow.schema : currentSchema);
     var table = editingRow ? editingRow.table : currentTable;
+    var bodyData = { db_type: dbType };
+
     try {
         if (editingRow) {
+            bodyData.action = 'update_row';
+            bodyData.table = table;
+            bodyData.id_column = editingRow.idCol;
+            bodyData.id_value = editingRow.idVal;
+            bodyData.data = data;
             var res = await AHPL.api('/panel/api/database.php', {
                 method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-                body: JSON.stringify({ action: 'update_row', table: table, id_column: editingRow.idCol, id_value: editingRow.idVal, data: data })
+                body: JSON.stringify(bodyData)
             });
             if (res.success) { AHPL.toast('Row diupdate'); closeRowModal(); viewTable(table, currentPage); }
         } else {
+            bodyData.action = 'insert_row';
+            bodyData.table = table;
+            bodyData.data = data;
             var res = await AHPL.api('/panel/api/database.php', {
                 method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-                body: JSON.stringify({ action: 'insert_row', table: table, data: data })
+                body: JSON.stringify(bodyData)
             });
             if (res.success) { AHPL.toast('Row ditambahkan'); closeRowModal(); viewTable(table, currentPage); }
         }
@@ -296,7 +353,7 @@ async function confirmDelete() {
     try {
         var res = await AHPL.api('/panel/api/database.php', {
             method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'delete_row', table: tbl, id_column: deletingRow.idCol, id_value: deletingRow.idVal })
+            body: JSON.stringify({ action: 'delete_row', table: tbl, id_column: deletingRow.idCol, id_value: deletingRow.idVal, db_type: dbType })
         });
         if (res.success) { AHPL.toast('Row dihapus'); closeDeleteModal(); viewTable(tbl, currentPage); }
     } catch (e) { AHPL.toast(e.message, 'error'); }
@@ -305,7 +362,7 @@ async function confirmDelete() {
 // --- CSV Export ---
 function exportCSV() {
     if (!currentTable) return;
-    window.location = '/panel/api/database.php?action=export_csv&table=' + encodeURIComponent(currentTable) + '&t=' + Date.now();
+    window.location = '/panel/api/database.php?action=export_csv&table=' + encodeURIComponent(currentTable) + '&' + getDBParam() + '&t=' + Date.now();
 }
 
 // --- SQL Query ---
@@ -327,7 +384,7 @@ async function executeQuery() {
     try {
         var res = await AHPL.api('/panel/api/database.php', {
             method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'query', query: query })
+            body: JSON.stringify({ action: 'query', query: query, db_type: dbType })
         });
 
         if (res.columns && res.columns.length) {
@@ -371,7 +428,7 @@ async function executeWriteQuery() {
     try {
         var res = await AHPL.api('/panel/api/database.php', {
             method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'query', query: query, confirm_write: true })
+            body: JSON.stringify({ action: 'query', query: query, confirm_write: true, db_type: dbType })
         });
         resultDiv.innerHTML = '<div style="padding:12px;background:#d4edda;color:#155724;border-radius:8px;font-size:13px;"><i class="fas fa-check-circle"></i> Query executed. Affected rows: ' + res.affected + ' (' + res.elapsed + 's)</div>';
     } catch (e) {

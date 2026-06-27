@@ -6,19 +6,16 @@ header('Content-Type: application/json');
 
 if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 
-$db = getDB();
+$dbType = $_GET['db_type'] ?? ($_POST['db_type'] ?? 'sqlite');
+$dbType = in_array($dbType, ['sqlite', 'mariadb']) ? $dbType : 'sqlite';
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
     $action = $_GET['action'] ?? '';
 
     if ($action === 'list_tables') {
-        $tables = [];
-        $res = $db->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-            $count = $db->querySingle("SELECT COUNT(*) FROM \"" . $row['name'] . "\"");
-            $tables[] = ['name' => $row['name'], 'row_count' => (int)$count];
-        }
+        $tables = dbListTables($dbType);
         jsonResponse(['success' => true, 'tables' => $tables]);
     }
 
@@ -31,19 +28,24 @@ if ($method === 'GET') {
         $perPage = min(100, max(10, (int)($_GET['per_page'] ?? 50)));
         $offset = ($page - 1) * $perPage;
 
-        $total = (int)$db->querySingle("SELECT COUNT(*) FROM \"$table\"");
-        $cols = [];
-        $schema = [];
-        $colRes = $db->query("PRAGMA table_info(\"$table\")");
-        while ($c = $colRes->fetchArray(SQLITE3_ASSOC)) {
-            $cols[] = $c['name'];
-            $schema[] = ['name' => $c['name'], 'type' => $c['type'], 'notnull' => (int)$c['notnull'], 'dflt_value' => $c['dflt_value'], 'pk' => (int)$c['pk']];
-        }
+        $total = dbGetRowCount($dbType, $table);
+        $schema = dbGetSchema($dbType, $table);
+        $cols = array_column($schema, 'name');
+        $q = dbQuote($dbType, $table);
 
         $rows = [];
-        $rowRes = $db->query("SELECT * FROM \"$table\" LIMIT $perPage OFFSET $offset");
-        while ($r = $rowRes->fetchArray(SQLITE3_NUM)) {
-            $rows[] = $r;
+        if ($dbType === 'mariadb') {
+            $pdo = getMariaDB();
+            $stmt = $pdo->prepare("SELECT * FROM $q LIMIT :lim OFFSET :off");
+            $stmt->bindValue(':lim', $perPage, PDO::PARAM_INT);
+            $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_NUM);
+        } else {
+            $rowRes = getDB()->query("SELECT * FROM $q LIMIT $perPage OFFSET $offset");
+            while ($r = $rowRes->fetchArray(SQLITE3_NUM)) {
+                $rows[] = $r;
+            }
         }
 
         jsonResponse(['success' => true, 'columns' => $cols, 'schema' => $schema, 'rows' => $rows, 'total' => $total, 'page' => $page]);
@@ -54,11 +56,7 @@ if ($method === 'GET') {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) {
             jsonResponse(['error' => 'Invalid table name'], 400);
         }
-        $schema = [];
-        $res = $db->query("PRAGMA table_info(\"$table\")");
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-            $schema[] = $row;
-        }
+        $schema = dbGetSchema($dbType, $table);
         jsonResponse(['success' => true, 'schema' => $schema]);
     }
 
@@ -68,24 +66,33 @@ if ($method === 'GET') {
             jsonResponse(['error' => 'Invalid table name'], 400);
         }
 
-        $cols = [];
-        $colRes = $db->query("PRAGMA table_info(\"$table\")");
-        while ($c = $colRes->fetchArray(SQLITE3_ASSOC)) {
-            $cols[] = $c['name'];
-        }
+        $cols = dbGetColumns($dbType, $table);
+        $q = dbQuote($dbType, $table);
 
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $table . '.csv"');
         $output = fopen('php://output', 'w');
         fputcsv($output, $cols);
 
-        $rowRes = $db->query("SELECT * FROM \"$table\"");
-        while ($r = $rowRes->fetchArray(SQLITE3_ASSOC)) {
-            $row = [];
-            foreach ($cols as $c) {
-                $row[] = $r[$c];
+        if ($dbType === 'mariadb') {
+            $pdo = getMariaDB();
+            $stmt = $pdo->query("SELECT * FROM $q");
+            while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $row = [];
+                foreach ($cols as $c) {
+                    $row[] = $r[$c];
+                }
+                fputcsv($output, $row);
             }
-            fputcsv($output, $row);
+        } else {
+            $rowRes = getDB()->query("SELECT * FROM $q");
+            while ($r = $rowRes->fetchArray(SQLITE3_ASSOC)) {
+                $row = [];
+                foreach ($cols as $c) {
+                    $row[] = $r[$c];
+                }
+                fputcsv($output, $row);
+            }
         }
         fclose($output);
         exit;
@@ -97,6 +104,8 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     requireCSRF();
     $input = json_decode(file_get_contents('php://input'), true);
+    $dbType = $input['db_type'] ?? 'sqlite';
+    $dbType = in_array($dbType, ['sqlite', 'mariadb']) ? $dbType : 'sqlite';
     $action = $input['action'] ?? '';
 
     if ($action === 'insert_row') {
@@ -107,24 +116,29 @@ if ($method === 'POST') {
 
         $cols = [];
         $vals = [];
+        $q = dbQuote($dbType, '');
         foreach ($data as $k => $v) {
             if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $cols[] = "\"$k\"";
+            $cols[] = $q . $k . $q;
             $vals[] = ":$k";
         }
         if (empty($cols)) jsonResponse(['error' => 'Data kosong'], 400);
 
         $colList = implode(', ', $cols);
         $valList = implode(', ', $vals);
-        $stmt = $db->prepare("INSERT INTO \"$table\" ($colList) VALUES ($valList)");
+        $tq = dbQuote($dbType, $table);
+        $paramTypes = [];
+        $params = [];
         foreach ($data as $k => $v) {
             if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $stmt->bindValue(":$k", $v, is_numeric($v) ? SQLITE3_INTEGER : SQLITE3_TEXT);
+            $params[":$k"] = $v;
+            if (is_numeric($v)) $paramTypes[":$k"] = SQLITE3_INTEGER;
         }
-        $stmt->execute();
+
+        dbPrepareExecute($dbType, "INSERT INTO $tq ($colList) VALUES ($valList)", $params, $paramTypes);
 
         logAction('db_insert', "INSERT INTO $table");
-        jsonResponse(['success' => true, 'id' => $db->lastInsertRowID()]);
+        jsonResponse(['success' => true, 'id' => dbLastInsertId($dbType)]);
     }
 
     if ($action === 'update_row') {
@@ -137,23 +151,28 @@ if ($method === 'POST') {
         if (empty($data)) jsonResponse(['error' => 'Data kosong'], 400);
 
         $sets = [];
+        $q = dbQuote($dbType, '');
         foreach ($data as $k => $v) {
             if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $sets[] = "\"$k\" = :$k";
+            $sets[] = $q . $k . $q . " = :$k";
         }
         if (empty($sets)) jsonResponse(['error' => 'Data kosong'], 400);
 
         $setStr = implode(', ', $sets);
-        $stmt = $db->prepare("UPDATE \"$table\" SET $setStr WHERE \"$idColumn\" = :__id__");
+        $tq = dbQuote($dbType, $table);
+        $idQ = $q . $idColumn . $q;
+        $params = [':__id__' => $idValue];
+        $paramTypes = [':__id__' => is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT];
         foreach ($data as $k => $v) {
             if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $k)) continue;
-            $stmt->bindValue(":$k", $v, is_numeric($v) ? SQLITE3_INTEGER : SQLITE3_TEXT);
+            $params[":$k"] = $v;
+            $paramTypes[":$k"] = is_numeric($v) ? SQLITE3_INTEGER : SQLITE3_TEXT;
         }
-        $stmt->bindValue(':__id__', $idValue, is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT);
-        $stmt->execute();
+
+        dbPrepareExecute($dbType, "UPDATE $tq SET $setStr WHERE $idQ = :__id__", $params, $paramTypes);
 
         logAction('db_update', "UPDATE $table WHERE $idColumn = $idValue");
-        jsonResponse(['success' => true, 'affected' => $db->changes()]);
+        jsonResponse(['success' => true, 'affected' => 1]);
     }
 
     if ($action === 'delete_row') {
@@ -163,12 +182,13 @@ if ($method === 'POST') {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $table)) jsonResponse(['error' => 'Invalid table'], 400);
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $idColumn)) jsonResponse(['error' => 'Invalid id column'], 400);
 
-        $stmt = $db->prepare("DELETE FROM \"$table\" WHERE \"$idColumn\" = :id");
-        $stmt->bindValue(':id', $idValue, is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT);
-        $stmt->execute();
+        $tq = dbQuote($dbType, $table);
+        $q = dbQuote($dbType, '');
+        $idQ = $q . $idColumn . $q;
+        dbPrepareExecute($dbType, "DELETE FROM $tq WHERE $idQ = :id", [':id' => $idValue], [':id' => is_numeric($idValue) ? SQLITE3_INTEGER : SQLITE3_TEXT]);
 
         logAction('db_delete', "DELETE FROM $table WHERE $idColumn = $idValue");
-        jsonResponse(['success' => true, 'affected' => $db->changes()]);
+        jsonResponse(['success' => true, 'affected' => 1]);
     }
 
     if ($action === 'query') {
@@ -176,8 +196,8 @@ if ($method === 'POST') {
         if (empty($rawQuery)) jsonResponse(['error' => 'Query wajib diisi'], 400);
 
         $firstWord = strtoupper(explode(' ', $rawQuery, 2)[0]);
-        $readOps = ['SELECT', 'PRAGMA', 'EXPLAIN'];
-        $writeOps = ['INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP', 'REINDEX', 'REPLACE', 'VACUUM'];
+        $readOps = ['SELECT', 'PRAGMA', 'EXPLAIN', 'SHOW', 'DESCRIBE'];
+        $writeOps = ['INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP', 'REINDEX', 'REPLACE', 'TRUNCATE'];
         $isRead = in_array($firstWord, $readOps);
         $isWrite = in_array($firstWord, $writeOps);
 
@@ -192,39 +212,44 @@ if ($method === 'POST') {
         $start = microtime(true);
         try {
             if ($isRead) {
-                $result = $db->query($rawQuery);
+                $result = dbQuery($dbType, $rawQuery);
                 $elapsed = round(microtime(true) - $start, 4);
 
                 if ($result === false) {
-                    jsonResponse(['error' => $db->lastErrorMsg()], 400);
+                    jsonResponse(['error' => 'Query execution failed'], 400);
                 }
 
                 $columns = [];
                 $rows = [];
-                $colCount = $result->numColumns();
+                $colCount = dbColumnCount($dbType, $result);
                 if ($colCount > 0) {
                     for ($i = 0; $i < $colCount; $i++) {
-                        $columns[] = $result->columnName($i);
+                        $columns[] = dbColumnName($dbType, $result, $i);
                     }
-                    $limit = 1000;
-                    while ($row = $result->fetchArray(SQLITE3_NUM)) {
-                        $rows[] = $row;
-                        if (count($rows) >= $limit) break;
+                    $rows = dbFetchAll($dbType, $result);
+                    if (count($rows) > 1000) {
+                        $rows = array_slice($rows, 0, 1000);
                     }
                 }
-                $result->finalize();
+                if ($dbType === 'sqlite' && method_exists($result, 'finalize')) {
+                    $result->finalize();
+                }
 
                 jsonResponse([
                     'success' => true,
                     'columns' => $columns,
                     'rows' => $rows,
-                    'affected' => $db->changes(),
+                    'affected' => 0,
                     'elapsed' => $elapsed,
                 ]);
             } else {
-                $db->exec($rawQuery);
+                if ($dbType === 'mariadb') {
+                    $affected = getMariaDB()->exec($rawQuery);
+                } else {
+                    getDB()->exec($rawQuery);
+                    $affected = getDB()->changes();
+                }
                 $elapsed = round(microtime(true) - $start, 4);
-                $affected = $db->changes();
                 logAction('db_query', strtok($rawQuery, "\n") . ' (' . $affected . ' affected)');
                 jsonResponse([
                     'success' => true,

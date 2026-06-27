@@ -36,6 +36,35 @@ $tunnelDomain = $db->querySingle("SELECT url FROM tunnel_domains ORDER BY id DES
 </div>
 
 <div class="card">
+    <div class="card-header"><h3><i class="fas fa-server"></i> MariaDB Connection</h3></div>
+    <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+                <label>Host</label>
+                <input type="text" class="form-control" id="mdbHost" value="<?= MARIADB_HOST ?>" readonly style="background:#f5f5f5;">
+            </div>
+            <div class="form-group">
+                <label>Port</label>
+                <input type="text" class="form-control" id="mdbPort" value="<?= MARIADB_PORT ?>" readonly style="background:#f5f5f5;">
+            </div>
+            <div class="form-group">
+                <label>Database</label>
+                <input type="text" class="form-control" id="mdbName" value="<?= MARIADB_NAME ?>" readonly style="background:#f5f5f5;">
+            </div>
+            <div class="form-group">
+                <label>User</label>
+                <input type="text" class="form-control" id="mdbUser" value="<?= MARIADB_USER ?>" readonly style="background:#f5f5f5;">
+            </div>
+        </div>
+        <p style="font-size:12px;color:#888;margin-bottom:12px;">
+            <i class="fas fa-info-circle"></i> Konfigurasi MariaDB bisa diubah di <code>config/local.php</code>
+        </p>
+        <button class="btn btn-sm btn-info" onclick="testMariaDB(this)"><i class="fas fa-plug"></i> Test Connection</button>
+        <span id="mdbTestResult" style="margin-left:10px;font-size:13px;display:none;"></span>
+    </div>
+</div>
+
+<div class="card">
     <div class="card-header"><h3><i class="fas fa-key"></i> Ganti Password</h3></div>
     <div class="card-body">
         <div class="form-group">
@@ -107,6 +136,26 @@ $tunnelDomain = $db->querySingle("SELECT url FROM tunnel_domains ORDER BY id DES
 </div>
 
 <script>
+async function testMariaDB(btn) {
+    var resultEl = document.getElementById('mdbTestResult');
+    resultEl.style.display = 'inline';
+    resultEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    btn.disabled = true;
+    try {
+        var res = await AHPL.api('/panel/api/settings.php', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
+            body: JSON.stringify({ action: 'test_mariadb' })
+        });
+        if (res.success) {
+            resultEl.innerHTML = '<span style="color:var(--success);"><i class="fas fa-check-circle"></i> Terhubung ke MariaDB ' + AHPL.escapeHtml(res.version) + ' (' + res.tables + ' tabel di "' + AHPL.escapeHtml(res.database) + '")</span>';
+        }
+    } catch (e) {
+        resultEl.innerHTML = '<span style="color:var(--danger);"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(e.message || 'Gagal') + '</span>';
+    }
+    btn.disabled = false;
+}
+
 async function saveKey() {
     const key = document.getElementById('apiKey').value.trim();
     if (!key) return AHPL.toast('Masukkan API Key', 'error');
