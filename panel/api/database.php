@@ -17,8 +17,8 @@ if ($method === 'GET') {
 
     if ($action === 'list_databases') {
         try {
-            $pdo = getMariaDBWithDB('information_schema');
-            $stmt = $pdo->query("SELECT SCHEMA_NAME FROM SCHEMATA WHERE SCHEMA_NAME NOT IN ('information_schema','performance_schema','mysql','sys') ORDER BY SCHEMA_NAME");
+            $pdo = getMariaDBNoDB();
+            $stmt = $pdo->query("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('information_schema','performance_schema','mysql','sys') ORDER BY SCHEMA_NAME");
             $dbs = [];
             while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $dbs[] = $r['SCHEMA_NAME'];
@@ -218,7 +218,7 @@ if ($method === 'POST') {
         $name = $input['name'] ?? '';
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) jsonResponse(['error' => 'Invalid database name'], 400);
         try {
-            $pdo = getMariaDBWithDB('information_schema');
+            $pdo = getMariaDBNoDB();
             $pdo->exec("CREATE DATABASE `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             logAction('db_create_db', "CREATE DATABASE $name");
             jsonResponse(['success' => true]);
@@ -231,7 +231,7 @@ if ($method === 'POST') {
         $name = $input['name'] ?? '';
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) jsonResponse(['error' => 'Invalid database name'], 400);
         try {
-            $pdo = getMariaDBWithDB('information_schema');
+            $pdo = getMariaDBNoDB();
             $pdo->exec("DROP DATABASE `$name`");
             logAction('db_drop_db', "DROP DATABASE $name");
             jsonResponse(['success' => true]);
@@ -364,7 +364,7 @@ if ($method === 'POST') {
 
         // FLUSH PRIVILEGES dulu biar CREATE USER/GRANT bisa jalan walau --skip-grant-tables
         if ($isWrite && $dbType === 'mariadb') {
-            try { getMariaDBWithDB('information_schema')->exec("FLUSH PRIVILEGES"); } catch (Exception $e) {}
+            try { getMariaDBNoDB()->exec("FLUSH PRIVILEGES"); } catch (Exception $e) {}
         }
 
         $start = microtime(true);

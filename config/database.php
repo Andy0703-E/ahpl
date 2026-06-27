@@ -6,12 +6,22 @@ function getDB() {
         $db = new SQLite3(DB_FILE);
         $db->enableExceptions(true);
         $db->exec('PRAGMA journal_mode = WAL');
+        $db->exec('PRAGMA busy_timeout = 5000');
     }
     return $db;
 }
 
 function getMariaDB() {
     return getMariaDBWithDB(MARIADB_NAME);
+}
+
+function getMariaDBNoDB() {
+    $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";charset=utf8mb4";
+    return new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
 }
 
 function getMariaDBWithDB($dbName) {
@@ -23,14 +33,8 @@ function getMariaDBWithDB($dbName) {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
     } catch (PDOException $e) {
-        // Jika database tidak ditemukan (1049), fallback ke information_schema
-        if ($e->getCode() == 1049) {
-            $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";dbname=information_schema;charset=utf8mb4";
-            return new PDO($dsn, MARIADB_USER, MARIADB_PASS, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ]);
+        if ($e->getCode() == 1049 || $e->getCode() == 1044) {
+            return getMariaDBNoDB();
         }
         throw $e;
     }
