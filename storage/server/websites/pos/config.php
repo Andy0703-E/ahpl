@@ -4,8 +4,8 @@ session_start();
 define('DB_HOST', '127.0.0.1');
 define('DB_PORT', 3306);
 define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'pos');
+define('DB_PASS', 'ahpl123');
+define('DB_NAME', 'db_pos');
 
 function getDB() {
     static $pdo = null;

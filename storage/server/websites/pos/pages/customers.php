@@ -9,9 +9,9 @@ if ($search) {
     $params[':s2'] = "%$search%";
     $params[':s3'] = "%$search%";
 }
-$customers = $pdo->prepare("SELECT c.*, (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sale_count, (SELECT COALESCE(SUM(grand_total),0) FROM sales WHERE customer_id = c.id) as total_spent FROM customers c $where ORDER BY c.name")->fetchAll();
-if (!empty($params)) $customers->execute($params);
-else $customers = $customers->fetchAll();
+$stmt = $pdo->prepare("SELECT c.*, (SELECT COUNT(*) FROM sales WHERE customer_id = c.id) as sale_count, (SELECT COALESCE(SUM(grand_total),0) FROM sales WHERE customer_id = c.id) as total_spent FROM customers c $where ORDER BY c.name");
+$stmt->execute($params);
+$customers = $stmt->fetchAll();
 ?>
 <div class="card">
     <div class="card-body">

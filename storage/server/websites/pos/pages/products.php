@@ -14,8 +14,11 @@ if ($search) {
     $params[':search3'] = "%$search%";
 }
 
-$total = (int)$pdo->prepare("SELECT COUNT(*) FROM products p $where")->execute($params)->fetchColumn();
-$products = $pdo->prepare("
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM products p $where");
+$stmt->execute($params);
+$total = (int)$stmt->fetchColumn();
+
+$stmt = $pdo->prepare("
     SELECT p.*, c.name as category_name, u.name as unit_name, u.short_name
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
@@ -23,11 +26,11 @@ $products = $pdo->prepare("
     $where
     ORDER BY p.name ASC LIMIT :lim OFFSET :off
 ");
-foreach ($params as $k => $v) $products->bindValue($k, $v);
-$products->bindValue(':lim', $perPage, PDO::PARAM_INT);
-$products->bindValue(':off', $offset, PDO::PARAM_INT);
-$products->execute();
-$products = $products->fetchAll();
+foreach ($params as $k => $v) $stmt->bindValue($k, $v);
+$stmt->bindValue(':lim', $perPage, PDO::PARAM_INT);
+$stmt->bindValue(':off', $offset, PDO::PARAM_INT);
+$stmt->execute();
+$products = $stmt->fetchAll();
 
 $totalPages = ceil($total / $perPage);
 
