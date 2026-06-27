@@ -9,6 +9,22 @@ if (!isLoggedIn()) jsonResponse(['error' => 'Unauthorized'], 401);
 $method = $_SERVER['REQUEST_METHOD'];
 $base = WEBSITES_PATH;
 
+if ($method === 'GET') {
+    $action = $_GET['action'] ?? '';
+    if ($action === 'read') {
+        $path = $_GET['path'] ?? '';
+        $full = resolvePath($base, $path);
+        if (!isPathSafe($full, $base) || !file_exists($full) || is_dir($full)) {
+            jsonResponse(['error' => 'Not found'], 404);
+        }
+        $content = file_get_contents($full);
+        $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
+        $map = ['html'=>'html','htm'=>'html','css'=>'css','js'=>'javascript','php'=>'php','json'=>'application/json'];
+        $lang = $map[$ext] ?? 'html';
+        jsonResponse(['success' => true, 'content' => $content, 'lang' => $lang, 'name' => basename($full)]);
+    }
+}
+
 if ($method === 'DELETE') {
     requireCSRF();
     $path = $_GET['path'] ?? '';
