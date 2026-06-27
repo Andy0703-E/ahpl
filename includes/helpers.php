@@ -469,7 +469,7 @@ function checkServiceStatus($service) {
 }
 
 function startService($service) {
-    if (checkServiceStatus($service) === 'running') return ['error' => "$service sudah running"];
+    if (checkServiceStatus($service) === 'running') return ['success' => true, 'status' => 'running'];
     switch ($service) {
         case 'nginx':
             $out = @shell_exec('nginx 2>&1');
@@ -478,7 +478,8 @@ function startService($service) {
             $out = @shell_exec('php-fpm -R 2>&1');
             break;
         case 'mariadb':
-            $out = @shell_exec('mariadbd-safe --skip-grant-tables 2>&1 &');
+            $logFile = '/data/data/com.termux/files/usr/var/lib/mysql/mariadb-start.log';
+            @shell_exec('nohup mariadbd-safe --skip-grant-tables > ' . escapeshellarg($logFile) . ' 2>&1 &');
             sleep(3);
             break;
         case 'cloudflared':
@@ -517,7 +518,7 @@ function startService($service) {
 }
 
 function stopService($service) {
-    if (checkServiceStatus($service) === 'stopped') return ['error' => "$service sudah stop"];
+    if (checkServiceStatus($service) === 'stopped') return ['success' => true, 'status' => 'stopped'];
     switch ($service) {
         case 'nginx':
             $out = @shell_exec('nginx -s stop 2>&1');
