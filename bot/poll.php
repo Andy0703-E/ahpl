@@ -4,6 +4,17 @@ if (PHP_SAPI !== 'cli') {
     die('Script ini hanya bisa dijalankan via CLI.');
 }
 
+$missing = [];
+if (!extension_loaded('curl')) $missing[] = 'curl';
+if (!extension_loaded('sqlite3')) $missing[] = 'sqlite3';
+if (!empty($missing)) {
+    fwrite(STDERR, "ERROR: Extension PHP berikut tidak terinstall: " . implode(', ', $missing) . "\n");
+    fwrite(STDERR, "Install dengan: pkg install php-" . implode(' php-', $missing) . "\n");
+    exit(1);
+}
+
+session_save_path(sys_get_temp_dir());
+
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/bot.php';
