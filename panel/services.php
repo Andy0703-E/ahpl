@@ -5,11 +5,6 @@ require_once __DIR__ . '/includes/header.php';
 $svcNginx = checkServiceStatus('nginx');
 $svcPhp = checkServiceStatus('php-fpm');
 $svcCf = checkServiceStatus('cloudflared');
-$cfUrl = getSetting(SETTING_CLOUDFLARE_URL);
-if (!$cfUrl && $svcCf === 'running') {
-    $cfUrl = getTunnelUrl();
-    if ($cfUrl) setSetting(SETTING_CLOUDFLARE_URL, $cfUrl);
-}
 ?>
 
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:22px;">
@@ -53,11 +48,6 @@ if (!$cfUrl && $svcCf === 'running') {
             </div>
             <p style="color:var(--text-muted);margin-bottom:6px;font-size:13px;font-weight:500;">Tunnel</p>
             <p id="cfLabel" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:<?= $svcCf === 'running' ? 'var(--success)' : 'var(--text-muted)' ?>;margin-bottom:18px;"><?= ucfirst($svcCf) ?></p>
-            <?php if ($cfUrl): ?>
-                <p style="font-size:11px;word-break:break-all;margin-bottom:18px;background:var(--bg-hover);padding:8px;border-radius:6px;">
-                    <a href="<?= htmlspecialchars($cfUrl) ?>" target="_blank" rel="noopener" style="color:var(--primary);"><?= htmlspecialchars($cfUrl) ?></a>
-                </p>
-            <?php endif; ?>
             <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
                 <button class="btn btn-sm btn-success" onclick="serviceAction('cloudflared','start')"><i class="fas fa-play"></i> Start</button>
                 <button class="btn btn-sm btn-danger" onclick="serviceAction('cloudflared','stop')"><i class="fas fa-stop"></i> Stop</button>
@@ -94,14 +84,6 @@ async function checkAllServices() {
         var data = await res.json();
         if (data.services) {
             updateAllStatuses(data.services);
-            var cfLink = document.querySelector('#cfCard .card-body a');
-            var cfBox = cfLink ? cfLink.parentElement : null;
-            if (data.tunnel_url) {
-                if (cfLink) { cfLink.href = data.tunnel_url; cfLink.textContent = data.tunnel_url; }
-                if (cfBox) cfBox.style.display = 'block';
-            } else {
-                if (cfBox) cfBox.style.display = 'none';
-            }
         }
     } catch(e) {
         updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false });

@@ -47,6 +47,12 @@ function initDatabase() {
         window_start INTEGER NOT NULL
     )");
 
+    $db->exec("CREATE TABLE IF NOT EXISTS tunnel_domains (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
     // Migration: add password_changed column if missing (v1 -> v1.1)
     if ($dbVersion < 1) {
         $cols = getTableColumns($db, 'users');

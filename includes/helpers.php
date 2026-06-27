@@ -374,7 +374,11 @@ function getTunnelUrl() {
 function saveTunnelUrl() {
     $url = getTunnelUrl();
     if ($url) {
-        setSetting(SETTING_CLOUDFLARE_URL, $url);
+        $db = getDB();
+        $db->exec("DELETE FROM tunnel_domains");
+        $stmt = $db->prepare("INSERT INTO tunnel_domains (url) VALUES (:url)");
+        $stmt->bindValue(':url', $url, SQLITE3_TEXT);
+        $stmt->execute();
         return $url;
     }
     return null;
@@ -382,9 +386,7 @@ function saveTunnelUrl() {
 
 function deleteTunnelUrl() {
     $db = getDB();
-    $stmt = $db->prepare("DELETE FROM settings WHERE key = :key");
-    $stmt->bindValue(':key', SETTING_CLOUDFLARE_URL, SQLITE3_TEXT);
-    $stmt->execute();
+    $db->exec("DELETE FROM tunnel_domains");
 }
 
 // --- Service Manager ---
