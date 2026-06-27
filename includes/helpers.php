@@ -490,10 +490,13 @@ function startService($service) {
             @unlink('/data/data/com.termux/files/usr/var/run/mysqld.sock');
             @unlink('/data/data/com.termux/files/usr/var/run/mysqld.sock.lock');
             @unlink($pidfile);
-            $bin = is_executable('/data/data/com.termux/files/usr/bin/mariadbd-safe') ? 'mariadbd-safe' : 'mysqld_safe';
-            @shell_exec('nohup ' . $bin . ' --skip-grant-tables > ' . escapeshellarg($logFile) . ' 2>&1 &');
+            $bin = '/data/data/com.termux/files/usr/bin/mysqld_safe';
+            if (is_executable('/data/data/com.termux/files/usr/bin/mariadbd-safe')) {
+                $bin = '/data/data/com.termux/files/usr/bin/mariadbd-safe';
+            }
+            @shell_exec('sh -c "' . $bin . ' --skip-grant-tables > ' . escapeshellarg($logFile) . ' 2>&1 &"');
             $socket = '/data/data/com.termux/files/usr/var/run/mysqld.sock';
-            for ($i = 0; $i < 15; $i++) {
+            for ($i = 0; $i < 20; $i++) {
                 if (file_exists($socket)) break;
                 sleep(1);
             }
