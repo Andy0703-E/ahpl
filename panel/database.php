@@ -1,646 +1,550 @@
 <?php
-$pageTitle = 'Database Manager';
+$pageTitle = 'phpMyAdmin';
 require_once __DIR__ . '/includes/header.php';
 ?>
 
-<div id="dbInfoCard" class="card" style="margin-bottom:18px;display:none;">
-    <div class="card-body" style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;">
-        <span><strong>Type:</strong> <span id="dbInfoType">-</span></span>
-        <span><strong>Version:</strong> <span id="dbInfoVersion">-</span></span>
-        <span><strong>Tables:</strong> <span id="dbInfoTables">-</span></span>
-        <span><strong>Size:</strong> <span id="dbInfoSize">-</span></span>
-        <span id="dbInfoUptimeRow" style="display:none;"><strong>Uptime:</strong> <span id="dbInfoUptime">-</span></span>
+<style>
+.phpmyadmin { --pmabg: #f3f3f3; }
+.pma-header { background: linear-gradient(135deg,#007bff,#0056b3); color:#fff; border-radius:10px; padding:18px 22px; margin-bottom:20px; display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+.pma-header .brand { font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; }
+.pma-header .brand i { font-size:22px; }
+.pma-header .info { display:flex; gap:18px; font-size:12px; opacity:.9; flex-wrap:wrap; }
+.pma-header .info span { display:flex; align-items:center; gap:4px; }
+.pma-header .info strong { font-weight:600; }
+#dbStatus { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 12px; border-radius:20px; }
+#dbStatus.loading { background:rgba(255,255,255,.2); }
+#dbStatus.connected { background:rgba(40,167,69,.3); }
+#dbStatus.error { background:rgba(220,53,69,.3); }
+.db-card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); margin-bottom:18px; overflow:hidden; }
+.db-card-head { padding:14px 18px; border-bottom:1px solid #e9ecef; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.db-card-head h3 { font-size:15px; font-weight:600; margin-right:auto; }
+.db-card-head .actions { display:flex; gap:6px; }
+.db-card-body { padding:14px 18px; overflow-x:auto; }
+.table-list td { vertical-align:middle; }
+.table-list .tname { font-weight:600; }
+.table-list .tname i { color:var(--primary); margin-right:8px; }
+.tab-bar { display:flex; gap:2px; background:#f0f0f0; padding:3px; border-radius:8px; margin-bottom:14px; }
+.tab-btn { padding:6px 16px; border:none; border-radius:6px; font-size:12px; cursor:pointer; background:transparent; color:#666; font-weight:500; }
+.tab-btn.active { background:#fff; color:#333; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.tab-btn:hover:not(.active) { background:rgba(0,0,0,.05); }
+.pma-table td, .pma-table th { font-size:12px; }
+.pma-table .null { color:#aaa; font-style:italic; }
+.pma-table .act-cell { white-space:nowrap; width:70px; }
+.filter-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.filter-bar input { padding:6px 10px; border:1px solid #ccc; border-radius:6px; font-size:12px; }
+</style>
+
+<div id="app">
+  <!-- Server Info Header -->
+  <div class="pma-header">
+    <div class="brand"><i class="fas fa-server"></i> MariaDB</div>
+    <div class="info">
+      <span><i class="fas fa-tag"></i> <strong id="hdrVersion">-</strong></span>
+      <span><i class="fas fa-table"></i> Tables: <strong id="hdrTables">0</strong></span>
+      <span><i class="fas fa-database"></i> <strong id="hdrDbName"><?= MARIADB_NAME ?></strong></span>
+      <span><i class="fas fa-hdd"></i> Size: <strong id="hdrSize">0 KB</strong></span>
+      <span id="hdrUptimeRow"><i class="fas fa-clock"></i> Uptime: <strong id="hdrUptime">-</strong></span>
     </div>
+    <span id="dbStatus" class="loading"><i class="fas fa-spinner fa-spin"></i> Connecting...</span>
+  </div>
+
+  <!-- Table List -->
+  <div class="db-card" id="tableListCard">
+    <div class="db-card-head">
+      <h3><i class="fas fa-list"></i> Tables</h3>
+      <div class="actions">
+        <button class="btn btn-sm btn-success" onclick="openCreateTable()"><i class="fas fa-plus"></i> New</button>
+        <button class="btn btn-sm btn-info" onclick="openQuery()"><i class="fas fa-terminal"></i> SQL</button>
+        <button class="btn btn-sm btn-outline" onclick="init()"><i class="fas fa-sync"></i></button>
+      </div>
+    </div>
+    <div class="db-card-body" id="tablesContainer">
+      <p style="color:#888;font-size:13px;">Memuat...</p>
+    </div>
+  </div>
+
+  <!-- Table Viewer -->
+  <div id="tableViewer" style="display:none;">
+    <div class="db-card">
+      <div class="db-card-head">
+        <h3><i class="fas fa-database"></i> <span id="currentTableName"></span></h3>
+        <div class="actions">
+          <button class="btn btn-sm btn-success" onclick="addRow()"><i class="fas fa-plus"></i> Insert</button>
+          <button class="btn btn-sm btn-warning" onclick="truncateTable()"><i class="fas fa-eraser"></i> Empty</button>
+          <button class="btn btn-sm btn-outline" onclick="exportCSV()"><i class="fas fa-file-csv"></i> Export</button>
+          <button class="btn btn-sm btn-danger" onclick="closeTable()"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      <div class="db-card-body">
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tabBrowse" onclick="switchTab('browse')"><i class="fas fa-table"></i> Browse</button>
+          <button class="tab-btn" id="tabStructure" onclick="switchTab('structure')"><i class="fas fa-info-circle"></i> Structure</button>
+        </div>
+        <div id="browseTab">
+          <div class="filter-bar" style="margin-bottom:10px;">
+            <input type="text" id="searchInput" placeholder="Cari..." style="flex:1;">
+            <button class="btn btn-sm btn-outline" onclick="viewTable(currentTable, 1)"><i class="fas fa-search"></i></button>
+          </div>
+          <div id="tableContent">Memuat...</div>
+          <div id="tablePagination" style="margin-top:12px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;"></div>
+        </div>
+        <div id="structureTab" style="display:none;">
+          <div id="schemaContent">Memuat...</div>
+          <div style="margin-top:12px;">
+            <button class="btn btn-sm btn-outline" onclick="addColumn()"><i class="fas fa-plus"></i> Add Column</button>
+            <button class="btn btn-sm btn-danger" onclick="dropTable(currentTable)" style="float:right;"><i class="fas fa-trash"></i> Drop Table</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h3><i class="fas fa-table"></i> Tables</h3>
-        <div style="display:flex;gap:6px;align-items:center;">
-            <div class="db-switcher" style="display:flex;gap:3px;background:var(--bg);padding:3px;border-radius:8px;margin-right:8px;">
-                <button class="db-switch-btn active" data-type="sqlite" onclick="switchDB('sqlite')"><i class="fas fa-database"></i> SQLite</button>
-                <button class="db-switch-btn" data-type="mariadb" onclick="switchDB('mariadb')"><i class="fas fa-server"></i> MariaDB</button>
-            </div>
-            <span id="dbStatus" style="font-size:11px;color:#888;display:none;"></span>
-            <button class="btn btn-sm btn-success" onclick="openCreateTable()" title="Create Table"><i class="fas fa-plus"></i> Table</button>
-            <button class="btn btn-sm btn-info" onclick="openQuery()"><i class="fas fa-terminal"></i> SQL</button>
-        </div>
+<!-- Modals -->
+<div id="createTableModal" class="modal-overlay">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header"><h3><i class="fas fa-plus-circle"></i> Create Table</h3><button class="modal-close" onclick="closeCreateTable()">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Table name</label><input type="text" class="form-control" id="newTableName" placeholder="contoh: users"></div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px;">Columns:</div>
+      <div id="newTableColumns"></div>
+      <button class="btn btn-sm btn-outline" onclick="addColumnDef()"><i class="fas fa-plus"></i> Add column</button>
     </div>
-    <div class="card-body">
-        <div id="tablesContainer"><p style="color:#888;font-size:13px;">Memuat tabel...</p></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateTable()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmCreateTable()">Create</button>
     </div>
+  </div>
 </div>
 
-<div id="tableViewer" style="display:none;">
-    <div class="card">
-        <div class="card-header">
-            <h3><i class="fas fa-database"></i> <span id="currentTableName"></span></h3>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <button class="btn btn-sm btn-success" onclick="addRow()"><i class="fas fa-plus"></i> Tambah</button>
-                <button class="btn btn-sm btn-outline" onclick="showSchema()"><i class="fas fa-info-circle"></i> Schema</button>
-                <button class="btn btn-sm btn-outline" onclick="exportCSV()"><i class="fas fa-file-csv"></i> CSV</button>
-                <button class="btn btn-sm btn-warning" onclick="truncateTable()"><i class="fas fa-eraser"></i> Truncate</button>
-                <button class="btn btn-sm btn-outline" onclick="closeTable()"><i class="fas fa-times"></i> Tutup</button>
-            </div>
-        </div>
-        <div class="card-body" style="overflow-x:auto;">
-            <div id="tableContent"><p style="color:#888;font-size:13px;">Memuat data...</p></div>
-            <div id="tablePagination" style="margin-top:12px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;"></div>
-        </div>
+<div id="addColumnModal" class="modal-overlay">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header"><h3><i class="fas fa-plus"></i> Add Column</h3><button class="modal-close" onclick="closeAddColumn()">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Name</label><input type="text" class="form-control" id="acName" placeholder="column_name"></div>
+      <div class="form-group"><label>Type</label>
+        <select class="form-control" id="acType">
+          <option>INT</option><option selected>VARCHAR(255)</option><option>TEXT</option><option>DATETIME</option>
+          <option>BOOLEAN</option><option>FLOAT</option><option>BIGINT</option><option>LONGTEXT</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px;">
+        <label style="font-size:13px;"><input type="checkbox" id="acPk"> PRIMARY KEY</label>
+        <label style="font-size:13px;"><input type="checkbox" id="acAi"> AUTO_INCREMENT</label>
+        <label style="font-size:13px;"><input type="checkbox" id="acNn"> NOT NULL</label>
+      </div>
+      <div class="form-group" style="margin-top:8px;"><label>Default (optional)</label><input type="text" class="form-control" id="acDefault" placeholder="NULL"></div>
     </div>
-</div>
-
-<div id="schemaModal" class="modal-overlay">
-    <div class="modal">
-        <div class="modal-header">
-            <h3><i class="fas fa-info-circle"></i> Schema: <span id="schemaTableName"></span></h3>
-            <button class="modal-close" onclick="closeSchema()">&times;</button>
-        </div>
-        <div class="modal-body" style="overflow-x:auto;"><div id="schemaContent"></div></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddColumn()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAddColumn()">Add</button>
     </div>
+  </div>
 </div>
 
 <div id="rowModal" class="modal-overlay">
-    <div class="modal" style="max-width:600px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-edit"></i> <span id="rowModalTitle">Edit Row</span></h3>
-            <button class="modal-close" onclick="closeRowModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div id="rowFormContainer"></div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeRowModal()">Batal</button>
-            <button class="btn btn-primary" id="rowSaveBtn" onclick="saveRow()"><i class="fas fa-save"></i> Simpan</button>
-        </div>
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header"><h3><i class="fas fa-edit"></i> <span id="rowModalTitle">Edit Row</span></h3><button class="modal-close" onclick="closeRowModal()">&times;</button></div>
+    <div class="modal-body" id="rowFormContainer"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeRowModal()">Cancel</button>
+      <button class="btn btn-primary" id="rowSaveBtn" onclick="saveRow()">Save</button>
     </div>
+  </div>
 </div>
 
 <div id="deleteModal" class="modal-overlay">
-    <div class="modal" style="max-width:400px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-trash" style="color:var(--danger);"></i> Hapus Row</h3>
-            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p style="font-size:14px;margin-bottom:6px;">Yakin ingin menghapus row ini?</p>
-            <p style="font-size:12px;color:#888;" id="deletePreview"></p>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeDeleteModal()">Batal</button>
-            <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Hapus</button>
-        </div>
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header"><h3 style="color:var(--danger);"><i class="fas fa-trash"></i> Delete Row</h3><button class="modal-close" onclick="closeDeleteModal()">&times;</button></div>
+    <div class="modal-body">
+      <p style="font-size:14px;margin-bottom:6px;">Yakin ingin menghapus row ini?</p>
+      <p style="font-size:12px;color:#888;" id="deletePreview"></p>
     </div>
-</div>
-
-<div id="createTableModal" class="modal-overlay">
-    <div class="modal" style="max-width:600px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-plus-circle"></i> Buat Table Baru</h3>
-            <button class="modal-close" onclick="closeCreateTable()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Nama Table</label>
-                <input type="text" class="form-control" id="newTableName" placeholder="contoh: users">
-            </div>
-            <div style="font-size:12px;color:#888;margin-bottom:8px;">Columns:</div>
-            <div id="newTableColumns">
-                <div class="ct-col" style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-                    <input type="text" class="form-control" style="width:140px;font-size:12px;" placeholder="nama" value="id">
-                    <select class="form-control" style="width:110px;font-size:12px;">
-                        <option>INT</option>
-                        <option selected>TEXT</option>
-                        <option>VARCHAR(255)</option>
-                        <option>DATETIME</option>
-                        <option>BOOLEAN</option>
-                        <option>FLOAT</option>
-                    </select>
-                    <label style="font-size:11px;white-space:nowrap;"><input type="checkbox" checked> PK</label>
-                    <label style="font-size:11px;white-space:nowrap;"><input type="checkbox" checked> AI</label>
-                    <label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> NN</label>
-                    <button class="btn-icon del" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
-                </div>
-            </div>
-            <button class="btn btn-sm btn-outline" onclick="addColumnDef()"><i class="fas fa-plus"></i> Column</button>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeCreateTable()">Batal</button>
-            <button class="btn btn-primary" onclick="confirmCreateTable()"><i class="fas fa-check"></i> Buat</button>
-        </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
     </div>
+  </div>
 </div>
 
 <div id="dropTableModal" class="modal-overlay">
-    <div class="modal" style="max-width:400px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-trash" style="color:var(--danger);"></i> Hapus Table</h3>
-            <button class="modal-close" onclick="closeDropTable()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p style="font-size:14px;margin-bottom:6px;">Yakin ingin menghapus table <strong id="dropTableName"></strong>?</p>
-            <p style="font-size:12px;color:var(--danger);">Semua data akan hilang permanen!</p>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeDropTable()">Batal</button>
-            <button class="btn btn-danger" onclick="confirmDropTable()"><i class="fas fa-trash"></i> Hapus</button>
-        </div>
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header"><h3 style="color:var(--danger);"><i class="fas fa-trash"></i> Drop Table</h3><button class="modal-close" onclick="closeDropTable()">&times;</button></div>
+    <div class="modal-body">
+      <p style="font-size:14px;margin-bottom:6px;">Yakin ingin menghapus table <strong id="dropTableName"></strong>?</p>
+      <p style="font-size:12px;color:var(--danger);">Semua data akan hilang permanen!</p>
     </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDropTable()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDropTable()">Drop</button>
+    </div>
+  </div>
 </div>
 
 <div id="truncateTableModal" class="modal-overlay">
-    <div class="modal" style="max-width:400px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-eraser" style="color:var(--warning);"></i> Truncate Table</h3>
-            <button class="modal-close" onclick="closeTruncateTable()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p style="font-size:14px;margin-bottom:6px;">Yakin ingin mengosongkan table <strong id="truncateTableName"></strong>?</p>
-            <p style="font-size:12px;color:var(--warning);">Semua baris akan dihapus, tapi struktur table tetap ada.</p>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeTruncateTable()">Batal</button>
-            <button class="btn btn-warning" onclick="confirmTruncateTable()"><i class="fas fa-eraser"></i> Truncate</button>
-        </div>
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header"><h3 style="color:var(--warning);"><i class="fas fa-eraser"></i> Empty Table</h3><button class="modal-close" onclick="closeTruncateTable()">&times;</button></div>
+    <div class="modal-body">
+      <p style="font-size:14px;margin-bottom:6px;">Yakin ingin mengosongkan <strong id="truncateTableName"></strong>?</p>
+      <p style="font-size:12px;color:var(--warning);">Semua baris dihapus, struktur tetap.</p>
     </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeTruncateTable()">Cancel</button>
+      <button class="btn btn-warning" onclick="confirmTruncateTable()">Empty</button>
+    </div>
+  </div>
 </div>
 
 <div id="queryModal" class="modal-overlay">
-    <div class="modal" style="max-width:750px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-terminal"></i> SQL Query</h3>
-            <button class="modal-close" onclick="closeQuery()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p style="font-size:12px;color:#888;margin-bottom:10px;">Semua query didukung. Query <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> memerlukan konfirmasi.</p>
-            <div class="form-group">
-                <label>Query</label>
-                <textarea class="form-control" id="sqlQuery" rows="4" style="font-family:monospace;font-size:13px;" placeholder="SELECT * FROM websites LIMIT 10"></textarea>
-            </div>
-            <button class="btn btn-primary" onclick="executeQuery()"><i class="fas fa-play"></i> Run</button>
-            <div id="queryResult" style="margin-top:12px;overflow-x:auto;"></div>
-        </div>
+  <div class="modal" style="max-width:800px;">
+    <div class="modal-header"><h3><i class="fas fa-terminal"></i> SQL Query</h3><button class="modal-close" onclick="closeQuery()">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <textarea class="form-control" id="sqlQuery" rows="5" style="font-family:monospace;font-size:13px;" placeholder="SELECT * FROM ..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="executeQuery()"><i class="fas fa-play"></i> Go</button>
+      <div id="queryResult" style="margin-top:12px;overflow-x:auto;"></div>
     </div>
+  </div>
 </div>
 
-<style>
-#dbStatus { font-size:11px; animation: fadeIn 0.3s; }
-#dbStatus.connected { color:var(--success); }
-#dbStatus.error { color:var(--danger); }
-</style>
-
 <script>
-let currentTable = null;
-let currentSchema = null;
-let currentPage = 1;
-let editingRow = null;
-let deletingRow = null;
-let dbType = 'sqlite';
+let currentTable = null, currentSchema = null, currentPage = 1;
+let editingRow = null, deletingRow = null;
+let _dropTable = null, _truncateTable = null;
 const PER_PAGE = 50;
 
-function getDBParam() { return 'db_type=' + dbType; }
+function init() {
+  var el = document.getElementById('dbStatus');
+  el.className = 'loading';
+  el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting...';
+  document.getElementById('tablesContainer').innerHTML = '<p style="color:#888;font-size:13px;">Memuat...</p>';
+  document.getElementById('tableViewer').style.display = 'none';
+  currentTable = null;
 
-// --- DB Switcher ---
-async function switchDB(type) {
-    dbType = type;
-    document.querySelectorAll('.db-switch-btn').forEach(function(b) { b.classList.remove('active'); });
-    document.querySelector('.db-switch-btn[data-type="' + type + '"]').classList.add('active');
-
-    var statusEl = document.getElementById('dbStatus');
-    statusEl.style.display = 'inline-flex';
-    statusEl.className = '';
-    statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghubungi...';
-
-    document.getElementById('tablesContainer').innerHTML = '<p style="color:#888;font-size:13px;">Memuat tabel...</p>';
-    document.getElementById('tableViewer').style.display = 'none';
-    currentTable = null;
-
-    if (type === 'mariadb') {
-        try {
-            await AHPL.api('/panel/api/database.php?action=list_tables&' + getDBParam());
-            statusEl.className = 'connected';
-            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> MariaDB terhubung';
-            loadTables();
-            loadDbInfo();
-        } catch (e) {
-            statusEl.className = 'error';
-            statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> MariaDB: ' + AHPL.escapeHtml(e.message);
-            document.getElementById('tablesContainer').innerHTML = '<p style="color:var(--danger);font-size:13px;">Gagal terhubung ke MariaDB: ' + AHPL.escapeHtml(e.message) + '</p>';
-            document.getElementById('dbInfoCard').style.display = 'none';
-        }
-    } else {
-        statusEl.style.display = 'none';
-        loadTables();
-        loadDbInfo();
-    }
-}
-
-// --- Tables ---
-async function loadTables() {
-    try {
-        const res = await AHPL.api('/panel/api/database.php?action=list_tables&' + getDBParam());
-        const el = document.getElementById('tablesContainer');
-        if (!res.tables || !res.tables.length) {
-            el.innerHTML = '<p style="color:#888;font-size:13px;">Tidak ada tabel</p>';
-            return;
-        }
-        el.innerHTML = '<table class="table"><thead><tr><th>Tabel</th><th>Rows</th><th>Aksi</th></tr></thead><tbody>' +
-            res.tables.map(t => '<tr><td style="font-weight:600;"><i class="fas fa-table" style="color:var(--primary);margin-right:8px;"></i>' + AHPL.escapeHtml(t.name) + '</td><td>' + t.row_count + '</td><td style="white-space:nowrap;"><button class="btn btn-sm btn-info" onclick="viewTable(\'' + t.name + '\')" title="View"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-danger" onclick="dropTable(\'' + t.name + '\')" title="Drop"><i class="fas fa-trash"></i></button></td></tr>').join('') +
-            '</tbody></table>';
-    } catch (e) {
-        document.getElementById('tablesContainer').innerHTML = '<p style="color:var(--danger);font-size:13px;">Gagal memuat tabel: ' + AHPL.escapeHtml(e.message) + '</p>';
-    }
-}
-
-// --- View Table ---
-async function viewTable(table, page) {
-    page = page || 1;
-    currentTable = table;
-    currentPage = page;
-    document.getElementById('currentTableName').textContent = table;
-    document.getElementById('tableViewer').style.display = 'block';
-    document.getElementById('tableContent').innerHTML = '<p style="color:#888;font-size:13px;">Memuat data...</p>';
-
-    try {
-        const res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + encodeURIComponent(table) + '&page=' + page + '&per_page=' + PER_PAGE + '&' + getDBParam());
-        currentSchema = res.schema;
-
-        var pkCol = null;
-        for (var i = 0; i < res.schema.length; i++) { if (res.schema[i].pk) { pkCol = res.schema[i]; break; } }
-
-        var html = '<table class="table"><thead><tr>';
-        if (pkCol) html += '<th style="width:80px;">Aksi</th>';
-        res.columns.forEach(function(c) { html += '<th>' + AHPL.escapeHtml(c) + '</th>'; });
-        html += '</tr></thead><tbody>';
-
-        if (!res.rows.length) {
-            html += '<tr><td colspan="' + (res.columns.length + (pkCol ? 1 : 0)) + '" style="text-align:center;color:#888;">Kosong</td></tr>';
-        } else {
-            res.rows.forEach(function(row) {
-                html += '<tr>';
-                if (pkCol) {
-                    var idx = res.columns.indexOf(pkCol.name);
-                    var val = idx >= 0 ? row[idx] : '';
-                    var encVal = encodeURIComponent(String(val));
-                    var encTable = encodeURIComponent(table);
-                    html += '<td style="white-space:nowrap;"><button class="btn-icon" onclick="editRow(\'' + encTable + '\',\'' + AHPL.escapeHtml(pkCol.name) + '\',\'' + encVal + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn-icon del" onclick="showDelete(\'' + encTable + '\',\'' + AHPL.escapeHtml(pkCol.name) + '\',\'' + encVal + '\')" title="Hapus"><i class="fas fa-trash"></i></button></td>';
-                }
-                row.forEach(function(val) {
-                    if (val === null) {
-                        html += '<td style="font-size:12px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><span style="color:#ccc;font-style:italic;">NULL</span></td>';
-                    } else {
-                        html += '<td style="font-size:12px;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + AHPL.escapeHtml(String(val)) + '">' + AHPL.escapeHtml(String(val)) + '</td>';
-                    }
-                });
-                html += '</tr>';
-            });
-        }
-        html += '</tbody></table>';
-        document.getElementById('tableContent').innerHTML = html;
-
-        var totalPages = Math.ceil(res.total / PER_PAGE);
-        if (totalPages <= 1) { document.getElementById('tablePagination').innerHTML = ''; return; }
-        var pagHtml = '<span style="font-size:12px;color:#888;margin-right:6px;">Halaman:</span>';
-        for (var i = 1; i <= totalPages; i++) {
-            pagHtml += '<button class="btn btn-sm ' + (i === page ? 'btn-primary' : 'btn-outline') + '" onclick="viewTable(\'' + table + '\', ' + i + ')">' + i + '</button>';
-        }
-        document.getElementById('tablePagination').innerHTML = pagHtml;
-    } catch (e) {
-        document.getElementById('tableContent').innerHTML = '<p style="color:var(--danger);font-size:13px;">' + AHPL.escapeHtml(e.message) + '</p>';
-    }
-}
-
-function closeTable() { document.getElementById('tableViewer').style.display = 'none'; currentTable = null; currentSchema = null; }
-
-// --- Schema ---
-async function showSchema() {
-    if (!currentTable) return;
-    try {
-        var res = await AHPL.api('/panel/api/database.php?action=get_schema&table=' + encodeURIComponent(currentTable) + '&' + getDBParam());
-        document.getElementById('schemaTableName').textContent = currentTable;
-        document.getElementById('schemaContent').innerHTML = '<table class="table"><thead><tr><th>#</th><th>Column</th><th>Type</th><th>Nullable</th><th>Default</th><th>PK</th></tr></thead><tbody>' +
-            res.schema.map(function(s) { return '<tr><td>' + s.cid + '</td><td style="font-weight:600;">' + AHPL.escapeHtml(s.name) + '</td><td><code>' + AHPL.escapeHtml(s.type || 'N/A') + '</code></td><td>' + (s.notnull ? '<span class="badge badge-danger">NO</span>' : '<span class="badge badge-success">YES</span>') + '</td><td style="font-style:italic;color:#888;">' + (s.dflt_value !== null ? AHPL.escapeHtml(s.dflt_value) : '\u2014') + '</td><td>' + (s.pk ? '<span class="badge badge-info">PK</span>' : '') + '</td></tr>'; }).join('') +
-            '</tbody></table>';
-        document.getElementById('schemaModal').classList.add('active');
-    } catch (e) { AHPL.toast(e.message, 'error'); }
-}
-function closeSchema() { document.getElementById('schemaModal').classList.remove('active'); }
-
-// --- Row Form ---
-function buildRowForm(schema, data, isEdit) {
-    var pkCol = null;
-    for (var i = 0; i < schema.length; i++) { if (schema[i].pk) { pkCol = schema[i]; break; } }
-
-    var html = '';
-    for (var i = 0; i < schema.length; i++) {
-        var col = schema[i];
-        if (col.pk) {
-            var val = data && data[col.name] !== undefined ? data[col.name] : '';
-            html += '<div class="form-group"><label>' + AHPL.escapeHtml(col.name) + ' <span style="color:#888;font-size:11px;">' + (col.type || '') + ' [PK]</span></label>';
-            html += '<input type="text" class="form-control" id="rf-' + col.name + '" value="' + AHPL.escapeHtml(String(val)) + '" ' + (isEdit ? '' : 'readonly style="background:#f5f5f5;color:#999;"') + '></div>';
-            continue;
-        }
-        var val = data && data[col.name] !== undefined ? data[col.name] : col.dflt_value || '';
-        var required = col.notnull ? 'required' : '';
-        html += '<div class="form-group"><label>' + AHPL.escapeHtml(col.name) + ' <span style="color:#888;font-size:11px;">' + (col.type || '') + (col.notnull ? ' *' : '') + '</span></label>';
-        var isTextarea = col.type && (col.type.toUpperCase().includes('TEXT') || col.type.toUpperCase().includes('CHAR'));
-        if (isTextarea && (!val || val.length > 100)) {
-            html += '<textarea class="form-control" id="rf-' + col.name + '" rows="3" style="font-family:monospace;font-size:13px;" ' + required + '>' + AHPL.escapeHtml(String(val)) + '</textarea>';
-        } else {
-            html += '<input type="text" class="form-control" id="rf-' + col.name + '" value="' + AHPL.escapeHtml(String(val)) + '" ' + required + '>';
-        }
-        html += '</div>';
-    }
-    return html;
-}
-
-function getFormData(schema) {
-    var data = {};
-    for (var i = 0; i < schema.length; i++) {
-        var el = document.getElementById('rf-' + schema[i].name);
-        if (el) data[schema[i].name] = el.value;
-    }
-    return data;
-}
-
-// --- Add Row ---
-function addRow() {
-    editingRow = null;
-    document.getElementById('rowModalTitle').textContent = 'Tambah Row — ' + currentTable;
-    document.getElementById('rowSaveBtn').innerHTML = '<i class="fas fa-plus"></i> Tambah';
-    document.getElementById('rowFormContainer').innerHTML = buildRowForm(currentSchema, null, false);
-    document.getElementById('rowModal').classList.add('active');
-}
-
-// --- Edit Row ---
-async function editRow(table, idCol, idVal) {
-    try {
-        var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + table + '&page=1&per_page=10000000&' + getDBParam());
-        var idx = res.columns.indexOf(idCol);
-        if (idx < 0) { AHPL.toast('Kolom ID tidak ditemukan', 'error'); return; }
-        var rowData = null;
-        for (var i = 0; i < res.rows.length; i++) {
-            if (String(res.rows[i][idx]) === decodeURIComponent(idVal)) { rowData = res.rows[i]; break; }
-        }
-        if (!rowData) { AHPL.toast('Row tidak ditemukan', 'error'); return; }
-        var data = {};
-        for (var j = 0; j < res.columns.length; j++) { data[res.columns[j]] = rowData[j]; }
-
-        editingRow = { table: table, idCol: idCol, idVal: decodeURIComponent(idVal), schema: res.schema };
-        document.getElementById('rowModalTitle').textContent = 'Edit Row — ' + table;
-        document.getElementById('rowSaveBtn').innerHTML = '<i class="fas fa-save"></i> Simpan';
-        document.getElementById('rowFormContainer').innerHTML = buildRowForm(res.schema, data, true);
-        document.getElementById('rowModal').classList.add('active');
-    } catch (e) { AHPL.toast(e.message, 'error'); }
-}
-
-function closeRowModal() { document.getElementById('rowModal').classList.remove('active'); }
-
-async function saveRow() {
-    var data = getFormData(editingRow ? editingRow.schema : currentSchema);
-    var table = editingRow ? editingRow.table : currentTable;
-    var bodyData = { db_type: dbType };
-
-    try {
-        if (editingRow) {
-            bodyData.action = 'update_row';
-            bodyData.table = table;
-            bodyData.id_column = editingRow.idCol;
-            bodyData.id_value = editingRow.idVal;
-            bodyData.data = data;
-            var res = await AHPL.api('/panel/api/database.php', {
-                method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-                body: JSON.stringify(bodyData)
-            });
-            if (res.success) { AHPL.toast('Row diupdate'); closeRowModal(); viewTable(table, currentPage); }
-        } else {
-            bodyData.action = 'insert_row';
-            bodyData.table = table;
-            bodyData.data = data;
-            var res = await AHPL.api('/panel/api/database.php', {
-                method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-                body: JSON.stringify(bodyData)
-            });
-            if (res.success) { AHPL.toast('Row ditambahkan'); closeRowModal(); viewTable(table, currentPage); }
-        }
-    } catch (e) { AHPL.toast(e.message, 'error'); }
-}
-
-// --- Delete ---
-function showDelete(table, idCol, idVal) {
-    deletingRow = { table: table, idCol: idCol, idVal: decodeURIComponent(idVal) };
-    document.getElementById('deletePreview').textContent = idCol + ' = ' + decodeURIComponent(idVal);
-    document.getElementById('deleteModal').classList.add('active');
-}
-function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('active'); deletingRow = null; }
-
-async function confirmDelete() {
-    if (!deletingRow) return;
-    var tbl = deletingRow.table;
-    try {
-        var res = await AHPL.api('/panel/api/database.php', {
-            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'delete_row', table: tbl, id_column: deletingRow.idCol, id_value: deletingRow.idVal, db_type: dbType })
-        });
-        if (res.success) { AHPL.toast('Row dihapus'); closeDeleteModal(); viewTable(tbl, currentPage); }
-    } catch (e) { AHPL.toast(e.message, 'error'); }
-}
-
-// --- CSV Export ---
-function exportCSV() {
-    if (!currentTable) return;
-    window.location = '/panel/api/database.php?action=export_csv&table=' + encodeURIComponent(currentTable) + '&' + getDBParam() + '&t=' + Date.now();
-}
-
-// --- SQL Query ---
-function openQuery() {
-    document.getElementById('sqlQuery').value = '';
-    document.getElementById('queryResult').innerHTML = '';
-    document.getElementById('queryModal').classList.add('active');
-    setTimeout(function() { document.getElementById('sqlQuery').focus(); }, 150);
-}
-function closeQuery() { document.getElementById('queryModal').classList.remove('active'); }
-
-async function executeQuery() {
-    var query = document.getElementById('sqlQuery').value.trim();
-    if (!query) return AHPL.toast('Masukkan query', 'error');
-
-    var resultDiv = document.getElementById('queryResult');
-    resultDiv.innerHTML = '<p style="color:#888;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Running...</p>';
-
-    try {
-        var res = await AHPL.api('/panel/api/database.php', {
-            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'query', query: query, db_type: dbType })
-        });
-
-        if (res.columns && res.columns.length) {
-            var html = '<div style="margin-bottom:8px;font-size:12px;color:#666;">' + res.rows.length + ' row(s) in ' + res.elapsed + 's</div>';
-            html += '<div style="overflow-x:auto;"><table class="table"><thead><tr>';
-            res.columns.forEach(function(c) { html += '<th>' + AHPL.escapeHtml(c) + '</th>'; });
-            html += '</tr></thead><tbody>';
-            if (!res.rows.length) {
-                html += '<tr><td colspan="' + res.columns.length + '" style="text-align:center;color:#888;">Kosong</td></tr>';
-            } else {
-                res.rows.forEach(function(row) {
-                    html += '<tr>';
-                    row.forEach(function(val) {
-                        if (val === null) { html += '<td style="font-size:12px;max-width:300px;"><span style="color:#ccc;font-style:italic;">NULL</span></td>'; }
-                        else { html += '<td style="font-size:12px;max-width:300px;">' + AHPL.escapeHtml(String(val)) + '</td>'; }
-                    });
-                    html += '</tr>';
-                });
-            }
-            html += '</tbody></table></div>';
-            resultDiv.innerHTML = html;
-        } else {
-            resultDiv.innerHTML = '<div style="padding:12px;background:#d4edda;color:#155724;border-radius:8px;font-size:13px;"><i class="fas fa-check-circle"></i> Query executed. Affected rows: ' + res.affected + ' (' + res.elapsed + 's)</div>';
-        }
-    } catch (e) {
-        if (e.message && e.message.indexOf('require_confirm') >= 0) {
-            resultDiv.innerHTML = '<div style="padding:12px;background:#fff3cd;color:#856404;border-radius:8px;font-size:13px;margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> Query ini akan memodifikasi data. Lanjutkan?</div>' +
-                '<button class="btn btn-warning" onclick="executeWriteQuery()"><i class="fas fa-play"></i> Ya, jalankan</button>';
-            window._pendingWriteQuery = query;
-        } else {
-            resultDiv.innerHTML = '<div style="padding:12px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:13px;"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(e.message) + '</div>';
-        }
-    }
-}
-
-async function executeWriteQuery() {
-    var query = window._pendingWriteQuery;
-    if (!query) return;
-    var resultDiv = document.getElementById('queryResult');
-    resultDiv.innerHTML = '<p style="color:#888;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Running...</p>';
-    try {
-        var res = await AHPL.api('/panel/api/database.php', {
-            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'query', query: query, confirm_write: true, db_type: dbType })
-        });
-        resultDiv.innerHTML = '<div style="padding:12px;background:#d4edda;color:#155724;border-radius:8px;font-size:13px;"><i class="fas fa-check-circle"></i> Query executed. Affected rows: ' + res.affected + ' (' + res.elapsed + 's)</div>';
-    } catch (e) {
-        resultDiv.innerHTML = '<div style="padding:12px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:13px;"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(e.message) + '</div>';
-    }
+  loadDbInfo();
+  loadTables();
 }
 
 // --- DB Info ---
 async function loadDbInfo() {
-    try {
-        var res = await AHPL.api('/panel/api/database.php?action=db_info&' + getDBParam());
-        if (!res.info) return;
-        var info = res.info;
-        document.getElementById('dbInfoCard').style.display = 'block';
-        document.getElementById('dbInfoType').textContent = info.type.toUpperCase();
-        document.getElementById('dbInfoVersion').textContent = info.version || '-';
-        document.getElementById('dbInfoTables').textContent = info.table_count || '0';
-        document.getElementById('dbInfoSize').textContent = (info.size_kb || '0') + ' KB';
-        if (info.uptime && info.uptime > 0) {
-            document.getElementById('dbInfoUptimeRow').style.display = 'inline';
-            var days = Math.floor(info.uptime / 86400);
-            var hours = Math.floor((info.uptime % 86400) / 3600);
-            var mins = Math.floor((info.uptime % 3600) / 60);
-            document.getElementById('dbInfoUptime').textContent = (days > 0 ? days + 'd ' : '') + hours + 'h ' + mins + 'm';
-        } else {
-            document.getElementById('dbInfoUptimeRow').style.display = 'none';
+  try {
+    var res = await AHPL.api('/panel/api/database.php?action=db_info&db_type=mariadb');
+    if (!res.info) return;
+    var i = res.info;
+    document.getElementById('hdrVersion').textContent = i.version || '-';
+    document.getElementById('hdrTables').textContent = i.table_count || '0';
+    document.getElementById('hdrDbName').textContent = i.name || '-';
+    document.getElementById('hdrSize').textContent = (i.size_kb || '0') + ' KB';
+    if (i.uptime && i.uptime > 0) {
+      var d = Math.floor(i.uptime / 86400), h = Math.floor((i.uptime % 86400) / 3600), m = Math.floor((i.uptime % 3600) / 60);
+      document.getElementById('hdrUptime').textContent = (d > 0 ? d + 'd ' : '') + h + 'h ' + m + 'm';
+      document.getElementById('hdrUptimeRow').style.display = '';
+    }
+    var el = document.getElementById('dbStatus');
+    el.className = 'connected';
+    el.innerHTML = '<i class="fas fa-check-circle"></i> Connected';
+  } catch(e) {
+    document.getElementById('dbStatus').className = 'error';
+    document.getElementById('dbStatus').innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + e.message;
+  }
+}
+
+// --- Tables ---
+async function loadTables() {
+  try {
+    var res = await AHPL.api('/panel/api/database.php?action=list_tables&db_type=mariadb');
+    var el = document.getElementById('tablesContainer');
+    if (!res.tables || !res.tables.length) {
+      el.innerHTML = '<p style="color:#888;font-size:13px;text-align:center;padding:20px;">Tidak ada tabel</p>';
+      return;
+    }
+    el.innerHTML = '<table class="table table-list"><thead><tr><th>Table</th><th>Rows</th><th>Action</th></tr></thead><tbody>' +
+      res.tables.map(function(t) {
+        return '<tr><td class="tname"><i class="fas fa-table"></i>' + AHPL.escapeHtml(t.name) + '</td><td>' + t.row_count + '</td><td style="white-space:nowrap;">' +
+          '<button class="btn btn-sm btn-info" onclick="viewTable(\'' + t.name + '\')" title="Browse"><i class="fas fa-search"></i></button> ' +
+          '<button class="btn btn-sm btn-outline" onclick="showStructure(\'' + t.name + '\')" title="Structure"><i class="fas fa-list"></i></button> ' +
+          '<button class="btn btn-sm btn-danger" onclick="dropTable(\'' + t.name + '\')" title="Drop"><i class="fas fa-trash"></i></button></td></tr>';
+      }).join('') +
+      '</tbody></table>';
+  } catch(e) {
+    document.getElementById('tablesContainer').innerHTML = '<p style="color:var(--danger);font-size:13px;">' + AHPL.escapeHtml(e.message) + '</p>';
+  }
+}
+
+// --- Show Structure directly ---
+async function showStructure(table) {
+  currentTable = table;
+  document.getElementById('currentTableName').textContent = table;
+  document.getElementById('tableViewer').style.display = 'block';
+  switchTab('structure');
+  try {
+    var res = await AHPL.api('/panel/api/database.php?action=get_schema&table=' + encodeURIComponent(table) + '&db_type=mariadb');
+    currentSchema = res.schema;
+    document.getElementById('schemaContent').innerHTML = '<table class="table pma-table"><thead><tr><th>#</th><th>Column</th><th>Type</th><th>Collation</th><th>Null</th><th>Default</th><th>Extra</th></tr></thead><tbody>' +
+      res.schema.map(function(s, i) {
+        return '<tr><td>' + (i + 1) + '</td><td style="font-weight:600;">' + AHPL.escapeHtml(s.name) + '</td><td><code>' + AHPL.escapeHtml(s.type || '') + '</code></td><td>-</td><td>' + (s.notnull ? 'No' : 'Yes') + '</td><td style="font-style:italic;color:#888;">' + (s.dflt_value !== null ? AHPL.escapeHtml(s.dflt_value) : 'NULL') + '</td><td>' + (s.pk ? 'PRI' : '') + '</td></tr>';
+      }).join('') +
+      '</tbody></table>';
+  } catch(e) { AHPL.toast(e.message, 'error'); }
+}
+
+// --- View Table ---
+async function viewTable(table, page) {
+  page = page || 1;
+  currentTable = table;
+  currentPage = page;
+  document.getElementById('currentTableName').textContent = table;
+  document.getElementById('tableViewer').style.display = 'block';
+  switchTab('browse');
+  document.getElementById('tableContent').innerHTML = '<p style="color:#888;font-size:13px;">Loading...</p>';
+
+  try {
+    var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + encodeURIComponent(table) + '&page=' + page + '&per_page=' + PER_PAGE + '&db_type=mariadb');
+    currentSchema = res.schema;
+    var pkCol = null;
+    for (var i = 0; i < res.schema.length; i++) { if (res.schema[i].pk) { pkCol = res.schema[i]; break; } }
+
+    var html = '<table class="table pma-table"><thead><tr>';
+    if (pkCol) html += '<th class="act-cell">Action</th>';
+    res.columns.forEach(function(c) { html += '<th>' + AHPL.escapeHtml(c) + '</th>'; });
+    html += '</tr></thead><tbody>';
+
+    if (!res.rows.length) {
+      html += '<tr><td colspan="' + (res.columns.length + (pkCol ? 1 : 0)) + '" style="text-align:center;color:#888;padding:30px;">Empty</td></tr>';
+    } else {
+      res.rows.forEach(function(row) {
+        html += '<tr>';
+        if (pkCol) {
+          var idx = res.columns.indexOf(pkCol.name), val = idx >= 0 ? row[idx] : '';
+          var encVal = encodeURIComponent(String(val)), encT = encodeURIComponent(table);
+          html += '<td class="act-cell"><button class="btn-icon" onclick="editRow(\'' + encT + '\',\'' + AHPL.escapeHtml(pkCol.name) + '\',\'' + encVal + '\')" title="Edit"><i class="fas fa-pen"></i></button><button class="btn-icon del" onclick="showDelete(\'' + encT + '\',\'' + AHPL.escapeHtml(pkCol.name) + '\',\'' + encVal + '\')" title="Delete"><i class="fas fa-trash"></i></button></td>';
         }
-    } catch (e) {}
+        row.forEach(function(val) {
+          if (val === null) { html += '<td class="null">NULL</td>'; }
+          else { html += '<td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + AHPL.escapeHtml(String(val)) + '">' + AHPL.escapeHtml(String(val)) + '</td>'; }
+        });
+        html += '</tr>';
+      });
+    }
+    html += '</tbody></table>';
+    document.getElementById('tableContent').innerHTML = html;
+
+    var totalPages = Math.ceil(res.total / PER_PAGE);
+    if (totalPages <= 1) { document.getElementById('tablePagination').innerHTML = ''; return; }
+    var pg = '<span style="font-size:12px;color:#888;margin-right:6px;">Page:</span>';
+    for (var i = 1; i <= totalPages; i++) {
+      pg += '<button class="btn btn-sm ' + (i === page ? 'btn-primary' : 'btn-outline') + '" onclick="viewTable(\'' + table + '\', ' + i + ')">' + i + '</button>';
+    }
+    document.getElementById('tablePagination').innerHTML = pg;
+  } catch(e) {
+    document.getElementById('tableContent').innerHTML = '<p style="color:var(--danger);font-size:13px;">' + AHPL.escapeHtml(e.message) + '</p>';
+  }
+}
+
+function switchTab(tab) {
+  document.getElementById('tabBrowse').className = 'tab-btn' + (tab === 'browse' ? ' active' : '');
+  document.getElementById('tabStructure').className = 'tab-btn' + (tab === 'structure' ? ' active' : '');
+  document.getElementById('browseTab').style.display = tab === 'browse' ? '' : 'none';
+  document.getElementById('structureTab').style.display = tab === 'structure' ? '' : 'none';
+  if (tab === 'structure' && currentTable) showStructure(currentTable);
+}
+
+function closeTable() { document.getElementById('tableViewer').style.display = 'none'; currentTable = null; currentSchema = null; }
+
+// --- Row CRUD ---
+function buildRowForm(schema, data, isEdit) {
+  var pkCol = null;
+  for (var i = 0; i < schema.length; i++) { if (schema[i].pk) { pkCol = schema[i]; break; } }
+  var html = '';
+  for (var i = 0; i < schema.length; i++) {
+    var col = schema[i];
+    if (col.pk) {
+      var val = data && data[col.name] !== undefined ? data[col.name] : '';
+      html += '<div class="form-group"><label>' + AHPL.escapeHtml(col.name) + ' <span style="color:#888;font-size:11px;">[' + (col.type || '') + ' PK]</span></label>';
+      html += '<input type="text" class="form-control" id="rf-' + col.name + '" value="' + AHPL.escapeHtml(String(val)) + '" ' + (isEdit ? '' : 'readonly style="background:#f5f5f5;color:#999;"') + '></div>';
+      continue;
+    }
+    var val = data && data[col.name] !== undefined ? data[col.name] : col.dflt_value || '';
+    var required = col.notnull ? 'required' : '';
+    html += '<div class="form-group"><label>' + AHPL.escapeHtml(col.name) + ' <span style="color:#888;font-size:11px;">' + (col.type || '') + (col.notnull ? ' *' : '') + '</span></label>';
+    var isText = col.type && (col.type.toUpperCase().includes('TEXT') || col.type.toUpperCase().includes('CHAR'));
+    if (isText && (!val || val.length > 100)) {
+      html += '<textarea class="form-control" id="rf-' + col.name + '" rows="3" style="font-family:monospace;font-size:13px;" ' + required + '>' + AHPL.escapeHtml(String(val)) + '</textarea>';
+    } else {
+      html += '<input type="text" class="form-control" id="rf-' + col.name + '" value="' + AHPL.escapeHtml(String(val)) + '" ' + required + '>';
+    }
+    html += '</div>';
+  }
+  return html;
+}
+function getFormData(schema) {
+  var data = {};
+  for (var i = 0; i < schema.length; i++) { var e = document.getElementById('rf-' + schema[i].name); if (e) data[schema[i].name] = e.value; }
+  return data;
+}
+function addRow() {
+  editingRow = null;
+  document.getElementById('rowModalTitle').textContent = 'Insert Row - ' + currentTable;
+  document.getElementById('rowSaveBtn').innerHTML = '<i class="fas fa-plus"></i> Insert';
+  document.getElementById('rowFormContainer').innerHTML = buildRowForm(currentSchema, null, false);
+  document.getElementById('rowModal').classList.add('active');
+}
+async function editRow(table, idCol, idVal) {
+  try {
+    var res = await AHPL.api('/panel/api/database.php?action=get_table&table=' + table + '&page=1&per_page=10000000&db_type=mariadb');
+    var idx = res.columns.indexOf(idCol);
+    if (idx < 0) { AHPL.toast('ID column not found', 'error'); return; }
+    var rowData = null;
+    for (var i = 0; i < res.rows.length; i++) { if (String(res.rows[i][idx]) === decodeURIComponent(idVal)) { rowData = res.rows[i]; break; } }
+    if (!rowData) { AHPL.toast('Row not found', 'error'); return; }
+    var data = {};
+    for (var j = 0; j < res.columns.length; j++) { data[res.columns[j]] = rowData[j]; }
+    editingRow = { table: table, idCol: idCol, idVal: decodeURIComponent(idVal), schema: res.schema };
+    document.getElementById('rowModalTitle').textContent = 'Edit Row - ' + table;
+    document.getElementById('rowSaveBtn').innerHTML = '<i class="fas fa-save"></i> Save';
+    document.getElementById('rowFormContainer').innerHTML = buildRowForm(res.schema, data, true);
+    document.getElementById('rowModal').classList.add('active');
+  } catch(e) { AHPL.toast(e.message, 'error'); }
+}
+function closeRowModal() { document.getElementById('rowModal').classList.remove('active'); }
+async function saveRow() {
+  var data = getFormData(editingRow ? editingRow.schema : currentSchema);
+  var table = editingRow ? editingRow.table : currentTable;
+  var body = { db_type: 'mariadb' };
+  try {
+    if (editingRow) {
+      body.action = 'update_row'; body.table = table; body.id_column = editingRow.idCol; body.id_value = editingRow.idVal; body.data = data;
+      var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify(body) });
+      if (res.success) { AHPL.toast('Row updated'); closeRowModal(); viewTable(table, currentPage); }
+    } else {
+      body.action = 'insert_row'; body.table = table; body.data = data;
+      var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify(body) });
+      if (res.success) { AHPL.toast('Row inserted'); closeRowModal(); viewTable(table, currentPage); }
+    }
+  } catch(e) { AHPL.toast(e.message, 'error'); }
+}
+// --- Delete Row ---
+function showDelete(table, idCol, idVal) { deletingRow = { table: table, idCol: idCol, idVal: decodeURIComponent(idVal) }; document.getElementById('deletePreview').textContent = idCol + ' = ' + decodeURIComponent(idVal); document.getElementById('deleteModal').classList.add('active'); }
+function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('active'); deletingRow = null; }
+async function confirmDelete() {
+  if (!deletingRow) return;
+  try {
+    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'delete_row', table: deletingRow.table, id_column: deletingRow.idCol, id_value: deletingRow.idVal, db_type: 'mariadb' }) });
+    if (res.success) { AHPL.toast('Row deleted'); closeDeleteModal(); viewTable(deletingRow.table, currentPage); }
+  } catch(e) { AHPL.toast(e.message, 'error'); }
+}
+// --- CSV ---
+function exportCSV() { if (!currentTable) return; window.location = '/panel/api/database.php?action=export_csv&table=' + encodeURIComponent(currentTable) + '&db_type=mariadb&t=' + Date.now(); }
+
+// --- SQL Query ---
+function openQuery() { document.getElementById('sqlQuery').value = ''; document.getElementById('queryResult').innerHTML = ''; document.getElementById('queryModal').classList.add('active'); setTimeout(function() { document.getElementById('sqlQuery').focus(); }, 150); }
+function closeQuery() { document.getElementById('queryModal').classList.remove('active'); }
+async function executeQuery() {
+  var q = document.getElementById('sqlQuery').value.trim();
+  if (!q) return AHPL.toast('Enter query', 'error');
+  var rd = document.getElementById('queryResult');
+  rd.innerHTML = '<p style="color:#888;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Running...</p>';
+  try {
+    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'query', query: q, db_type: 'mariadb' }) });
+    if (res.columns && res.columns.length) {
+      var h = '<div style="margin-bottom:8px;font-size:12px;color:#666;">' + res.rows.length + ' row(s) in ' + res.elapsed + 's</div><div style="overflow-x:auto;"><table class="table pma-table"><thead><tr>';
+      res.columns.forEach(function(c) { h += '<th>' + AHPL.escapeHtml(c) + '</th>'; });
+      h += '</tr></thead><tbody>';
+      if (!res.rows.length) { h += '<tr><td colspan="' + res.columns.length + '" style="text-align:center;color:#888;padding:20px;">Empty</td></tr>'; }
+      else { res.rows.forEach(function(row) { h += '<tr>'; row.forEach(function(v) { if (v === null) h += '<td class="null">NULL</td>'; else h += '<td style="max-width:300px;">' + AHPL.escapeHtml(String(v)) + '</td>'; }); h += '</tr>'; }); }
+      h += '</tbody></table></div>';
+      rd.innerHTML = h;
+    } else {
+      rd.innerHTML = '<div style="padding:12px;background:#d4edda;color:#155724;border-radius:8px;font-size:13px;"><i class="fas fa-check-circle"></i> Query executed. Affected: ' + res.affected + ' (' + res.elapsed + 's)</div>';
+    }
+  } catch(e) {
+    if (e.message && e.message.indexOf('require_confirm') >= 0) {
+      rd.innerHTML = '<div style="padding:12px;background:#fff3cd;color:#856404;border-radius:8px;font-size:13px;margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> Query will modify data. Continue?</div><button class="btn btn-warning" onclick="executeWriteQuery()"><i class="fas fa-play"></i> Yes, execute</button>';
+      window._pendingWriteQuery = q;
+    } else {
+      rd.innerHTML = '<div style="padding:12px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:13px;"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(e.message) + '</div>';
+    }
+  }
+}
+async function executeWriteQuery() {
+  var q = window._pendingWriteQuery; if (!q) return;
+  var rd = document.getElementById('queryResult');
+  rd.innerHTML = '<p style="color:#888;font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Running...</p>';
+  try {
+    var res = await AHPL.api('/panel/api/database.php', { method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }, body: JSON.stringify({ action: 'query', query: q, confirm_write: true, db_type: 'mariadb' }) });
+    rd.innerHTML = '<div style="padding:12px;background:#d4edda;color:#155724;border-radius:8px;font-size:13px;"><i class="fas fa-check-circle"></i> Query executed. Affected: ' + res.affected + ' (' + res.elapsed + 's)</div>';
+  } catch(e) { rd.innerHTML = '<div style="padding:12px;background:#f8d7da;color:#721c24;border-radius:8px;font-size:13px;"><i class="fas fa-exclamation-circle"></i> ' + AHPL.escapeHtml(e.message) + '</div>'; }
 }
 
 // --- Drop Table ---
-var _dropTable = null;
-function dropTable(name) {
-    _dropTable = name;
-    document.getElementById('dropTableName').textContent = name;
-    document.getElementById('dropTableModal').classList.add('active');
-}
+function dropTable(n) { _dropTable = n; document.getElementById('dropTableName').textContent = n; document.getElementById('dropTableModal').classList.add('active'); }
 function closeDropTable() { document.getElementById('dropTableModal').classList.remove('active'); _dropTable = null; }
 async function confirmDropTable() {
-    if (!_dropTable) return;
-    try {
-        var res = await AHPL.api('/panel/api/database.php', {
-            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'drop_table', table: _dropTable, db_type: dbType })
-        });
-        if (res.success) { AHPL.toast('Table ' + _dropTable + ' dihapus'); closeDropTable(); loadTables(); loadDbInfo(); }
-    } catch (e) { AHPL.toast(e.message, 'error'); }
+  if (!_dropTable) return;
+  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'drop_table', table:_dropTable, db_type:'mariadb'}) }); if (r.success) { AHPL.toast('Table dropped'); closeDropTable(); document.getElementById('tableViewer').style.display='none'; loadTables(); loadDbInfo(); } }
+  catch(e) { AHPL.toast(e.message, 'error'); }
 }
-
-// --- Truncate Table ---
-var _truncateTable = null;
-function truncateTable() {
-    if (!currentTable) return;
-    _truncateTable = currentTable;
-    document.getElementById('truncateTableName').textContent = currentTable;
-    document.getElementById('truncateTableModal').classList.add('active');
-}
+// --- Truncate ---
+function truncateTable() { if (!currentTable) return; _truncateTable = currentTable; document.getElementById('truncateTableName').textContent = currentTable; document.getElementById('truncateTableModal').classList.add('active'); }
 function closeTruncateTable() { document.getElementById('truncateTableModal').classList.remove('active'); _truncateTable = null; }
 async function confirmTruncateTable() {
-    if (!_truncateTable) return;
-    try {
-        var res = await AHPL.api('/panel/api/database.php', {
-            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'truncate_table', table: _truncateTable, db_type: dbType })
-        });
-        if (res.success) { AHPL.toast('Table ' + _truncateTable + ' dikosongkan'); closeTruncateTable(); viewTable(currentTable, currentPage); loadTables(); }
-    } catch (e) { AHPL.toast(e.message, 'error'); }
+  if (!_truncateTable) return;
+  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'truncate_table', table:_truncateTable, db_type:'mariadb'}) }); if (r.success) { AHPL.toast('Table emptied'); closeTruncateTable(); viewTable(currentTable, 1); loadTables(); } }
+  catch(e) { AHPL.toast(e.message, 'error'); }
 }
-
 // --- Create Table ---
-function openCreateTable() {
-    document.getElementById('newTableName').value = '';
-    document.getElementById('newTableColumns').innerHTML = '';
-    addColumnDef();
-    document.getElementById('createTableModal').classList.add('active');
-}
+function openCreateTable() { document.getElementById('newTableName').value = ''; document.getElementById('newTableColumns').innerHTML = ''; addColumnDef(); document.getElementById('createTableModal').classList.add('active'); }
 function closeCreateTable() { document.getElementById('createTableModal').classList.remove('active'); }
 function addColumnDef() {
-    var cont = document.getElementById('newTableColumns');
-    var idx = cont.children.length;
-    var div = document.createElement('div');
-    div.className = 'ct-col';
-    div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
-    div.innerHTML =
-        '<input type="text" class="form-control" style="width:140px;font-size:12px;" placeholder="nama" value="column' + (idx + 1) + '">' +
-        '<select class="form-control" style="width:110px;font-size:12px;">' +
-            '<option>TEXT</option><option>INT</option><option>VARCHAR(255)</option><option>DATETIME</option><option>BOOLEAN</option><option>FLOAT</option>' +
-        '</select>' +
-        '<label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> PK</label>' +
-        '<label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> AI</label>' +
-        '<label style="font-size:11px;white-space:nowrap;"><input type="checkbox"> NN</label>' +
-        '<button class="btn-icon del" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>';
-    cont.appendChild(div);
+  var c = document.getElementById('newTableColumns'), idx = c.children.length, d = document.createElement('div');
+  d.className = 'ct-col'; d.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+  d.innerHTML = '<input type="text" class="form-control" style="width:130px;font-size:12px;" placeholder="name" value="column' + (idx + 1) + '"><select class="form-control" style="width:100px;font-size:12px;"><option>TEXT</option><option>INT</option><option>VARCHAR(255)</option><option>DATETIME</option><option>BOOLEAN</option><option>FLOAT</option></select><label style="font-size:11px;"><input type="checkbox"> PK</label><label style="font-size:11px;"><input type="checkbox"> AI</label><label style="font-size:11px;"><input type="checkbox"> NN</label><button class="btn-icon del" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>';
+  c.appendChild(d);
 }
 async function confirmCreateTable() {
-    var name = document.getElementById('newTableName').value.trim();
-    if (!name) { AHPL.toast('Nama table wajib diisi', 'error'); return; }
-    var colDivs = document.querySelectorAll('#newTableColumns .ct-col');
-    var columns = [];
-    colDivs.forEach(function(d) {
-        var inputs = d.querySelectorAll('input[type=text], select');
-        if (inputs.length < 2) return;
-        var colName = inputs[0].value.trim();
-        var colType = inputs[1].value;
-        if (!colName) return;
-        var chks = d.querySelectorAll('input[type=checkbox]');
-        columns.push({
-            name: colName,
-            type: colType,
-            pk: chks[0] ? chks[0].checked : false,
-            auto: chks[1] ? chks[1].checked : false,
-            notnull: chks[2] ? chks[2].checked : false,
-        });
-    });
-    if (columns.length === 0) { AHPL.toast('Minimal 1 kolom', 'error'); return; }
-    try {
-        var res = await AHPL.api('/panel/api/database.php', {
-            method: 'POST', headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'create_table', table: name, columns: columns, db_type: dbType })
-        });
-        if (res.success) { AHPL.toast('Table ' + name + ' dibuat!'); closeCreateTable(); loadTables(); loadDbInfo(); }
-    } catch (e) { AHPL.toast(e.message, 'error'); }
+  var name = document.getElementById('newTableName').value.trim();
+  if (!name) { AHPL.toast('Table name required', 'error'); return; }
+  var divs = document.querySelectorAll('#newTableColumns .ct-col'), cols = [];
+  divs.forEach(function(d) {
+    var inps = d.querySelectorAll('input[type=text], select'); if (inps.length < 2) return;
+    var cn = inps[0].value.trim(), ct = inps[1].value; if (!cn) return;
+    var chk = d.querySelectorAll('input[type=checkbox]');
+    cols.push({ name: cn, type: ct, pk: chk[0] ? chk[0].checked : false, auto: chk[1] ? chk[1].checked : false, notnull: chk[2] ? chk[2].checked : false });
+  });
+  if (cols.length === 0) { AHPL.toast('At least 1 column', 'error'); return; }
+  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'create_table', table:name, columns:cols, db_type:'mariadb'}) }); if (r.success) { AHPL.toast('Table created!'); closeCreateTable(); loadTables(); loadDbInfo(); } }
+  catch(e) { AHPL.toast(e.message, 'error'); }
+}
+// --- Add Column ---
+function openAddColumn() { document.getElementById('addColumnModal').classList.add('active'); }
+function closeAddColumn() { document.getElementById('addColumnModal').classList.remove('active'); }
+async function confirmAddColumn() {
+  if (!currentTable) return;
+  var name = document.getElementById('acName').value.trim();
+  if (!name) { AHPL.toast('Column name required', 'error'); return; }
+  var type = document.getElementById('acType').value;
+  var cols = [{ name: name, type: type, pk: document.getElementById('acPk').checked, auto: document.getElementById('acAi').checked, notnull: document.getElementById('acNn').checked }];
+  var dv = document.getElementById('acDefault').value.trim();
+  if (dv) cols[0].default = dv;
+  try { var r = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'create_table', table: '_ignore_' }), }); } catch(e) {}
+  // Use ALTER TABLE via SQL query
+  var parts = [name + ' ' + type];
+  if (cols[0].pk) parts.push('PRIMARY KEY'); if (cols[0].auto) parts.push('AUTO_INCREMENT'); if (cols[0].notnull) parts.push('NOT NULL');
+  if (dv) parts.push("DEFAULT " + (isNaN(dv) ? "'" + dv.replace(/'/g, "''") + "'" : dv));
+  var sql = "ALTER TABLE `" + currentTable + "` ADD COLUMN " + parts.join(' ');
+  try {
+    var res = await AHPL.api('/panel/api/database.php', { method:'POST', headers:{'X-CSRF-TOKEN':window.__CSRF_TOKEN__}, body:JSON.stringify({action:'query', query: sql, confirm_write: true, db_type:'mariadb'}) });
+    if (res.success) { AHPL.toast('Column added!'); closeAddColumn(); showStructure(currentTable); }
+  } catch(e) { AHPL.toast(e.message, 'error'); }
 }
 
-document.addEventListener('DOMContentLoaded', loadTables);
+function addColumn() {
+  document.getElementById('acName').value = ''; document.getElementById('acPk').checked = false; document.getElementById('acAi').checked = false; document.getElementById('acNn').checked = false; document.getElementById('acDefault').value = '';
+  document.getElementById('addColumnModal').classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', init);
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
