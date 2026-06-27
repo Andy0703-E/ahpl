@@ -34,7 +34,9 @@ function getMariaDBWithDB($dbName) {
         ]);
     } catch (PDOException $e) {
         if ($e->getCode() == 1049 || $e->getCode() == 1044) {
-            return getMariaDBNoDB();
+            $pdo = getMariaDBNoDB();
+            $pdo->exec("USE `$dbName`");
+            return $pdo;
         }
         throw $e;
     }

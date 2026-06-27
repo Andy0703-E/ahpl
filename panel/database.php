@@ -240,12 +240,18 @@ async function loadDatabases() {
     var res = await AHPL.api('/panel/api/database.php?action=list_databases&db_type=mariadb');
     var sel = document.getElementById('dbSelector');
     sel.innerHTML = '';
+    var found = false;
     res.databases.forEach(function(d) {
       var o = document.createElement('option');
       o.value = d; o.textContent = d;
-      if (d === currentDB) o.selected = true;
+      if (d === currentDB) { o.selected = true; found = true; }
       sel.appendChild(o);
     });
+    if (!found && res.databases.length > 0) {
+      currentDB = res.databases[0];
+      sel.value = currentDB;
+      switchDB(currentDB);
+    }
   } catch(e) {}
 }
 
