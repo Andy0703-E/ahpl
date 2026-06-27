@@ -280,7 +280,6 @@ async function loadDbInfo() {
     var i = res.info;
     document.getElementById('hdrVersion').textContent = i.version || '-';
     document.getElementById('hdrTables').textContent = i.table_count || '0';
-    document.getElementById('hdrDbName').textContent = i.name || '-';
     document.getElementById('hdrSize').textContent = (i.size_kb || '0') + ' KB';
     if (i.uptime && i.uptime > 0) {
       var d = Math.floor(i.uptime / 86400), h = Math.floor((i.uptime % 86400) / 3600), m = Math.floor((i.uptime % 3600) / 60);
