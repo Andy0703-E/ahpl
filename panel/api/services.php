@@ -13,6 +13,7 @@ if ($method === 'GET' && ($_GET['action'] ?? '') === 'status') {
         'nginx' => checkServiceStatus('nginx'),
         'php-fpm' => checkServiceStatus('php-fpm'),
         'cloudflared' => checkServiceStatus('cloudflared'),
+        'mariadb' => checkServiceStatus('mariadb'),
     ];
     jsonResponse(['success' => true, 'services' => $services]);
 }
@@ -23,7 +24,7 @@ if ($method === 'POST') {
     $service = $input['service'] ?? '';
     $action = $input['action'] ?? '';
 
-    if (!in_array($service, ['nginx', 'php-fpm', 'cloudflared'])) {
+    if (!in_array($service, ['nginx', 'php-fpm', 'cloudflared', 'mariadb'])) {
         jsonResponse(['error' => 'Service tidak valid'], 400);
     }
 

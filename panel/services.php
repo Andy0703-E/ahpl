@@ -5,9 +5,10 @@ require_once __DIR__ . '/includes/header.php';
 $svcNginx = checkServiceStatus('nginx');
 $svcPhp = checkServiceStatus('php-fpm');
 $svcCf = checkServiceStatus('cloudflared');
+$svcMaria = checkServiceStatus('mariadb');
 ?>
 
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:22px;">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:20px;margin-bottom:22px;">
     <div class="card" id="nginxCard">
         <div class="card-header"><h3><i class="fas fa-server"></i> Nginx</h3></div>
         <div class="card-body" style="text-align:center;">
@@ -55,10 +56,26 @@ $svcCf = checkServiceStatus('cloudflared');
             </div>
         </div>
     </div>
+
+    <div class="card" id="mariaCard">
+        <div class="card-header"><h3><i class="fas fa-database"></i> MariaDB</h3></div>
+        <div class="card-body" style="text-align:center;">
+            <div id="mariaStatus" class="service-status <?= $svcMaria ?>" style="font-size:56px;margin:18px 0;">
+                <i class="fas fa-circle"></i>
+            </div>
+            <p style="color:var(--text-muted);margin-bottom:6px;font-size:13px;font-weight:500;">Database Server</p>
+            <p id="mariaLabel" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:<?= $svcMaria === 'running' ? 'var(--success)' : 'var(--text-muted)' ?>;margin-bottom:18px;"><?= ucfirst($svcMaria) ?></p>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-success" onclick="serviceAction('mariadb','start')"><i class="fas fa-play"></i> Start</button>
+                <button class="btn btn-sm btn-danger" onclick="serviceAction('mariadb','stop')"><i class="fas fa-stop"></i> Stop</button>
+                <button class="btn btn-sm btn-info" onclick="serviceAction('mariadb','restart')"><i class="fas fa-sync"></i> Restart</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-var SERVICE_IDS = { nginx: 'nginx', 'php-fpm': 'php', cloudflared: 'cf' };
+var SERVICE_IDS = { nginx: 'nginx', 'php-fpm': 'php', cloudflared: 'cf', mariadb: 'maria' };
 
 function updateServiceStatus(s, running) {
     var id = SERVICE_IDS[s];
@@ -72,7 +89,7 @@ function updateServiceStatus(s, running) {
 }
 
 function updateAllStatuses(services) {
-    ['nginx','php-fpm','cloudflared'].forEach(function(s) {
+    ['nginx','php-fpm','cloudflared','mariadb'].forEach(function(s) {
         updateServiceStatus(s, services[s] === 'running');
     });
 }
@@ -80,13 +97,13 @@ function updateAllStatuses(services) {
 async function checkAllServices() {
     try {
         var res = await fetch('/panel/api/services.php?action=status');
-        if (!res.ok) { updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false }); return; }
+        if (!res.ok) { updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false, mariadb: false }); return; }
         var data = await res.json();
         if (data.services) {
             updateAllStatuses(data.services);
         }
     } catch(e) {
-        updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false });
+        updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false, mariadb: false });
     }
 }
 

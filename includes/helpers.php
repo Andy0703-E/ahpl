@@ -453,6 +453,13 @@ function isProcessRunning($name) {
         if (!empty(trim($out ?? ''))) return true;
         return false;
     }
+    if ($name === 'mariadb') {
+        $out = @shell_exec("pidof mariadbd mysqld 2>/dev/null || pgrep -f 'mariadbd|mysqld' 2>/dev/null");
+        if (!empty(trim($out ?? ''))) return true;
+        $socket = '/data/data/com.termux/files/usr/var/run/mysqld.sock';
+        if (file_exists($socket)) return true;
+        return false;
+    }
     return false;
 }
 
@@ -469,6 +476,10 @@ function startService($service) {
             break;
         case 'php-fpm':
             $out = @shell_exec('php-fpm -R 2>&1');
+            break;
+        case 'mariadb':
+            $out = @shell_exec('mariadbd-safe --skip-grant-tables 2>&1 &');
+            sleep(3);
             break;
         case 'cloudflared':
             $cfBin = null;
@@ -518,6 +529,14 @@ function stopService($service) {
                 $out = @shell_exec("kill -QUIT $pid 2>&1");
             } else {
                 $out = @shell_exec('pkill -f "php-fpm: master" 2>&1');
+            }
+            break;
+        case 'mariadb':
+            $out = @shell_exec('mysqladmin -u root shutdown 2>&1');
+            sleep(1);
+            if (checkServiceStatus('mariadb') !== 'stopped') {
+                $out2 = @shell_exec('pkill -f mariadbd 2>&1; pkill -f mysqld 2>&1');
+                $out = ($out ?: '') . "\n" . ($out2 ?: '');
             }
             break;
         case 'cloudflared':
