@@ -9,6 +9,7 @@ $lang = 'html';
 $isFile = false;
 $treeRoot = '';
 $treeHtml = '';
+$folderName = '';
 
 if (!empty($file)) {
     $base = WEBSITES_PATH;
@@ -21,38 +22,10 @@ if (!empty($file)) {
         $map = ['html'=>'htmlmixed','htm'=>'htmlmixed','css'=>'css','js'=>'javascript','php'=>'php','json'=>'application/json'];
         $lang = $map[$ext] ?? 'htmlmixed';
         $treeRoot = dirname($file);
+        $folderName = basename($treeRoot ?: $file);
+        $fullRoot = resolvePath(WEBSITES_PATH, $treeRoot);
+        $treeHtml = buildTreeHtml($fullRoot, $treeRoot, $file);
     }
-}
-
-function buildTreeHtml($dir, $basePath, $currentFile) {
-    $html = '<ul>';
-    $items = scandir($dir);
-    sort($items);
-    foreach ($items as $item) {
-        if ($item[0] === '.') continue;
-        $full = $dir . '/' . $item;
-        $rel = ltrim($basePath . '/' . $item, '/');
-        if (is_dir($full)) {
-            $html .= '<li class="tree-folder"><span class="tree-toggle" onclick="treeToggle(this)">&#9656;</span> <span class="tree-name">' . htmlspecialchars($item) . '</span>';
-            $html .= buildTreeHtml($full, $rel, $currentFile);
-            $html .= '</li>';
-        } else {
-            $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
-            $editable = in_array($ext, ['html','htm','css','js','php','json','txt','xml','md','svg']);
-            if (!$editable) continue;
-            $active = ($rel === $currentFile) ? ' active' : '';
-            $iconMap = ['html'=>'<i class="fas fa-file-code" style="color:#e44d26"></i>','htm'=>'<i class="fas fa-file-code" style="color:#e44d26"></i>','css'=>'<i class="fas fa-file-code" style="color:#264de4"></i>','js'=>'<i class="fas fa-file-code" style="color:#f7df1e"></i>','php'=>'<i class="fas fa-file-code" style="color:#8892bf"></i>','json'=>'<i class="fas fa-file-code" style="color:#28a745"></i>'];
-            $icon = $iconMap[$ext] ?? '<i class="fas fa-file"></i>';
-            $html .= '<li class="tree-file' . $active . '" data-path="' . htmlspecialchars($rel) . '" onclick="loadFile(\'' . htmlspecialchars($rel) . '\')">' . $icon . ' ' . htmlspecialchars($item) . '</li>';
-        }
-    }
-    $html .= '</ul>';
-    return $html;
-}
-
-if ($isFile) {
-    $fullRoot = resolvePath(WEBSITES_PATH, $treeRoot);
-    $treeHtml = buildTreeHtml($fullRoot, $treeRoot, $file);
 }
 ?>
 
@@ -76,13 +49,21 @@ body .content { padding:0; }
 #editorMain { height:100vh; }
 #editorToolbar { padding:8px 16px; }
 #editor .CodeMirror { min-height:calc(100vh - 42px) !important; }
+.tree-actions { display:none; margin-left:auto; flex-shrink:0; }
+.tree-file:hover .tree-actions, .tree-folder:hover .tree-actions { display:flex; gap:2px; }
+.tree-actions .btn-icon { width:22px; height:22px; font-size:10px; }
 </style>
 
 <div id="editorLayout">
     <div id="editorSidebar">
         <div class="sidebar-head">
-            <i class="fas fa-folder-open"></i> Explorer
-            <button class="btn-icon" onclick="treeToggleAll()" title="Expand All" style="margin-left:auto;color:var(--text-muted);font-size:11px;"><i class="fas fa-expand"></i></button>
+            <i class="fas fa-folder"></i> <span id="explorerTitle"><?= sanitize($folderName ?: 'Explorer') ?></span>
+            <div style="margin-left:auto;display:flex;gap:2px;">
+                <button class="btn-icon" onclick="showNewFile()" title="New File" style="color:var(--primary);font-size:12px;"><i class="fas fa-file-circle-plus"></i></button>
+                <button class="btn-icon" onclick="renameFile()" title="Rename" style="color:var(--text-muted);font-size:11px;"><i class="fas fa-i-cursor"></i></button>
+                <button class="btn-icon del" onclick="deleteFile()" title="Delete" style="font-size:11px;"><i class="fas fa-trash"></i></button>
+                <button class="btn-icon" onclick="treeToggleAll()" title="Expand All" style="color:var(--text-muted);font-size:11px;"><i class="fas fa-expand"></i></button>
+            </div>
         </div>
         <div id="fileTree"><?= $treeHtml ?></div>
     </div>
@@ -92,11 +73,8 @@ body .content { padding:0; }
                 <button class="btn-icon" onclick="document.getElementById('editorSidebar').classList.toggle('hide')" title="Toggle Sidebar" style="color:var(--text-muted);"><i class="fas fa-bars"></i></button>
                 <strong id="editorFileName"><i class="fas fa-file-code"></i> <?= sanitize($fileName) ?></strong>
                 <span class="badge badge-info" id="editorLang"><?= strtoupper($lang) ?></span>
-                <button class="btn-icon" onclick="renameFile()" title="Rename" style="color:var(--text-muted);font-size:12px;"><i class="fas fa-i-cursor"></i></button>
-                <button class="btn-icon del" onclick="deleteFile()" title="Delete" style="font-size:12px;"><i class="fas fa-trash"></i></button>
             </div>
             <div style="display:flex;gap:8px;">
-                <button class="btn btn-sm btn-info" onclick="showNewFile()"><i class="fas fa-file-circle-plus"></i> New</button>
                 <button class="btn btn-sm btn-success" onclick="saveFile()"><i class="fas fa-save"></i> Save</button>
                 <a href="/panel/files.php?dir=<?= urlencode(dirname($file)) ?>" class="btn btn-sm btn-outline"><i class="fas fa-arrow-left"></i> Back</a>
             </div>
@@ -172,6 +150,14 @@ function treeToggleAll() {
     });
 }
 
+async function refreshTree() {
+    var res = await fetch('/panel/api/file.php?action=tree_html&dir=' + encodeURIComponent(currentPath) + '&current=' + encodeURIComponent(currentFile));
+    var data = await res.json();
+    if (data.success) {
+        document.getElementById('fileTree').innerHTML = data.html;
+    }
+}
+
 async function loadFile(path) {
     try {
         var res = await fetch('/panel/api/file.php?action=read&path=' + encodeURIComponent(path));
@@ -183,9 +169,7 @@ async function loadFile(path) {
         document.getElementById('editorFileName').innerHTML = '<i class="fas fa-file-code"></i> ' + data.name;
         document.getElementById('editorLang').textContent = data.lang.toUpperCase();
         currentFile = path;
-        document.querySelectorAll('.tree-file.active').forEach(function(e) { e.classList.remove('active'); });
-        var el = document.querySelector('.tree-file[data-path="' + path.replace(/"/g, '\\"') + '"]');
-        if (el) el.classList.add('active');
+        refreshTree();
     } catch(e) {
         AHPL.toast('Error: ' + e.message, 'error');
     }
@@ -211,37 +195,52 @@ async function createFile() {
     }
 }
 
-function renameFile() {
-    var name = prompt('Nama file baru:', currentFile.split('/').pop());
-    if (!name || name === currentFile.split('/').pop()) return;
+function renameFileByPath(path) {
+    var name = prompt('Nama file baru:', path.split('/').pop());
+    if (!name || name === path.split('/').pop()) return;
     (async function() {
         var res = await AHPL.api('/panel/api/file.php', {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ },
-            body: JSON.stringify({ action: 'rename', path: currentFile, newName: name })
+            body: JSON.stringify({ action: 'rename', path: path, newName: name })
         });
         if (res.success) {
             AHPL.toast('File direname');
-            var newPath = currentFile.substring(0, currentFile.lastIndexOf('/') + 1) + name;
-            loadFile(newPath);
+            var newPath = path.substring(0, path.lastIndexOf('/') + 1) + name;
+            if (path === currentFile) { loadFile(newPath); }
+            else { refreshTree(); }
         } else {
             AHPL.toast(res.error || 'Gagal rename', 'error');
         }
     })();
 }
 
-async function deleteFile() {
-    if (!confirm('Hapus file "' + currentFile.split('/').pop() + '"?')) return;
-    var res = await AHPL.api('/panel/api/file.php?path=' + encodeURIComponent(currentFile), {
-        method: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }
-    });
-    if (res.success) {
-        AHPL.toast('File dihapus');
-        window.location = '/panel/files.php?dir=' + encodeURIComponent(currentPath);
-    } else {
-        AHPL.toast(res.error || 'Gagal hapus', 'error');
-    }
+function renameFile() {
+    renameFileByPath(currentFile);
+}
+
+function deleteFileByPath(path) {
+    if (!confirm('Hapus "' + path.split('/').pop() + '"?')) return;
+    (async function() {
+        var res = await AHPL.api('/panel/api/file.php?path=' + encodeURIComponent(path), {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': window.__CSRF_TOKEN__ }
+        });
+        if (res.success) {
+            AHPL.toast('Dihapus');
+            if (path === currentFile) {
+                window.location = '/panel/files.php?dir=' + encodeURIComponent(currentPath);
+            } else {
+                refreshTree();
+            }
+        } else {
+            AHPL.toast(res.error || 'Gagal hapus', 'error');
+        }
+    })();
+}
+
+function deleteFile() {
+    deleteFileByPath(currentFile);
 }
 
 async function saveFile() {

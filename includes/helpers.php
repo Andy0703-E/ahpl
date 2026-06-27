@@ -358,6 +358,36 @@ function createBackup($type = 'websites') {
     return ['success' => true, 'file' => $filename, 'size' => filesize($filepath)];
 }
 
+// --- File Tree ---
+
+function buildTreeHtml($dir, $basePath, $currentFile) {
+    $html = '<ul>';
+    $items = scandir($dir);
+    sort($items);
+    foreach ($items as $item) {
+        if ($item[0] === '.') continue;
+        $full = $dir . '/' . $item;
+        $rel = ltrim($basePath . '/' . $item, '/');
+        $encRel = htmlspecialchars($rel);
+        if (is_dir($full)) {
+            $html .= '<li class="tree-folder"><span class="tree-toggle" onclick="treeToggle(this)">&#9656;</span> <span class="tree-name">' . htmlspecialchars($item) . '</span>';
+            $html .= '<span class="tree-actions"><button class="btn-icon" onclick="event.stopPropagation();renameFileByPath(\'' . $encRel . '\')" title="Rename"><i class="fas fa-i-cursor"></i></button><button class="btn-icon del" onclick="event.stopPropagation();deleteFileByPath(\'' . $encRel . '\')" title="Delete"><i class="fas fa-trash"></i></button></span>';
+            $html .= buildTreeHtml($full, $rel, $currentFile);
+            $html .= '</li>';
+        } else {
+            $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
+            $editable = in_array($ext, ['html','htm','css','js','php','json','txt','xml','md','svg']);
+            if (!$editable) continue;
+            $active = ($rel === $currentFile) ? ' active' : '';
+            $iconMap = ['html'=>'<i class="fas fa-file-code" style="color:#e44d26"></i>','htm'=>'<i class="fas fa-file-code" style="color:#e44d26"></i>','css'=>'<i class="fas fa-file-code" style="color:#264de4"></i>','js'=>'<i class="fas fa-file-code" style="color:#f7df1e"></i>','php'=>'<i class="fas fa-file-code" style="color:#8892bf"></i>','json'=>'<i class="fas fa-file-code" style="color:#28a745"></i>'];
+            $icon = $iconMap[$ext] ?? '<i class="fas fa-file"></i>';
+            $html .= '<li class="tree-file' . $active . '" data-path="' . $encRel . '" onclick="loadFile(\'' . $encRel . '\')">' . $icon . ' ' . htmlspecialchars($item) . '<span class="tree-actions"><button class="btn-icon" onclick="event.stopPropagation();renameFileByPath(\'' . $encRel . '\')" title="Rename"><i class="fas fa-i-cursor"></i></button><button class="btn-icon del" onclick="event.stopPropagation();deleteFileByPath(\'' . $encRel . '\')" title="Delete"><i class="fas fa-trash"></i></button></span></li>';
+        }
+    }
+    $html .= '</ul>';
+    return $html;
+}
+
 // --- Cloudflared Tunnel URL ---
 
 function getTunnelUrl() {

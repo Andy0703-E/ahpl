@@ -11,6 +11,18 @@ $base = WEBSITES_PATH;
 
 if ($method === 'GET') {
     $action = $_GET['action'] ?? '';
+
+    if ($action === 'tree_html') {
+        $dir = $_GET['dir'] ?? '/';
+        $current = $_GET['current'] ?? '';
+        $full = resolvePath($base, $dir);
+        if (!isPathSafe($full, $base) || !is_dir($full)) {
+            jsonResponse(['error' => 'Not found'], 404);
+        }
+        $html = buildTreeHtml($full, $dir, $current);
+        jsonResponse(['success' => true, 'html' => $html]);
+    }
+
     if ($action === 'read') {
         $path = $_GET['path'] ?? '';
         $full = resolvePath($base, $path);
