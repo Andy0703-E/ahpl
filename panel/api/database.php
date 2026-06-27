@@ -463,7 +463,7 @@ if ($method === 'POST') {
                 $name = $col['name'] ?? '';
                 $type = $col['type'] ?? 'TEXT';
                 if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) continue;
-                $parts = [$name, $type];
+                $parts = ["`$name`", $type];
                 if (!empty($col['pk'])) $parts[] = 'PRIMARY KEY';
                 if (!empty($col['auto'])) $parts[] = 'AUTO_INCREMENT';
                 if (!empty($col['notnull'])) $parts[] = 'NOT NULL';
