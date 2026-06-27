@@ -586,6 +586,20 @@ function deployGithub($repoUrl, $destDir) {
     return ['success' => true, 'copied' => $copied];
 }
 
+// --- Visitor Log ---
+
+function logVisit() {
+    $db = getDB();
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $ua = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+    $page = $_SERVER['REQUEST_URI'] ?? '';
+    $stmt = $db->prepare("INSERT INTO visitor_logs (ip, user_agent, page) VALUES (:ip, :ua, :page)");
+    $stmt->bindValue(':ip', $ip, SQLITE3_TEXT);
+    $stmt->bindValue(':ua', $ua, SQLITE3_TEXT);
+    $stmt->bindValue(':page', $page, SQLITE3_TEXT);
+    $stmt->execute();
+}
+
 // --- Login History ---
 
 function getLoginHistory($limit = 20) {

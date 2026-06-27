@@ -2,11 +2,15 @@
 $pageTitle = 'Dashboard';
 require_once __DIR__ . '/includes/header.php';
 
+logVisit();
 $server = getServerInfo();
 $db = getDB();
 $websiteCount = $db->querySingle("SELECT COUNT(*) FROM websites");
 $fileCount = countFiles(WEBSITES_PATH);
 $recentLogs = $db->query("SELECT * FROM logs ORDER BY id DESC LIMIT 10");
+$visitorToday = $db->querySingle("SELECT COUNT(*) FROM visitor_logs WHERE date(created_at) = date('now')");
+$visitorTotal = $db->querySingle("SELECT COUNT(*) FROM visitor_logs");
+$recentVisitors = $db->query("SELECT DISTINCT ip, user_agent, page, MAX(created_at) as last_visit FROM visitor_logs GROUP BY ip ORDER BY last_visit DESC LIMIT 5");
 
 $diskPct = $server['disk_total'] > 0 ? round(($server['disk_used'] / $server['disk_total']) * 100) : 0;
 $memPct = $server['mem_total'] > 0 ? round(($server['mem_used'] / $server['mem_total']) * 100) : 0;
@@ -26,6 +30,20 @@ while ($row = $ws->fetchArray(SQLITE3_ASSOC)) {
         <div class="stat-info">
             <h4><?= getSetting('server_uptime') ?: 'Online' ?></h4>
             <p>Server Status</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon cyan"><i class="fas fa-eye"></i></div>
+        <div class="stat-info">
+            <h4><?= $visitorToday ?></h4>
+            <p>Visitors Today</p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+            <h4><?= $visitorTotal ?></h4>
+            <p>Total Visitors</p>
         </div>
     </div>
     <div class="stat-card">
@@ -90,6 +108,25 @@ while ($row = $ws->fetchArray(SQLITE3_ASSOC)) {
                 <?php endforeach; ?>
             </table>
             <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><h3><i class="fas fa-eye"></i> Visitor Log</h3></div>
+        <div class="card-body" style="max-height:360px;overflow-y:auto;padding:0;">
+            <table class="table">
+                <thead><tr><th>IP</th><th>Page</th><th>Agent</th><th>Terakhir</th></tr></thead>
+                <tbody>
+                    <?php while ($v = $recentVisitors->fetchArray(SQLITE3_ASSOC)): ?>
+                        <tr>
+                            <td style="font-family:monospace;font-size:12px;"><?= sanitize($v['ip']) ?></td>
+                            <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= sanitize($v['page']) ?>"><?= sanitize($v['page']) ?></td>
+                            <td style="font-size:11px;color:var(--text-muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?= sanitize($v['user_agent']) ?>"><?= sanitize(substr($v['user_agent'], 0, 40)) ?>...</td>
+                            <td style="font-size:11px;color:var(--text-muted);"><?= date('d M H:i', strtotime($v['last_visit'])) ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 

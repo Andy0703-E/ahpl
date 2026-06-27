@@ -40,6 +40,14 @@ function initDatabase() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
 
+    $db->exec("CREATE TABLE IF NOT EXISTS visitor_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT,
+        user_agent TEXT,
+        page TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
     $db->exec("CREATE TABLE IF NOT EXISTS rate_limits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         identifier TEXT NOT NULL,
