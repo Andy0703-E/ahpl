@@ -19,7 +19,7 @@ if (!empty($file)) {
         $fileName = basename($full);
         $isFile = true;
         $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
-        $map = ['html'=>'htmlmixed','htm'=>'htmlmixed','css'=>'css','js'=>'javascript','php'=>'php','json'=>'application/json'];
+        $map = ['html'=>'htmlmixed','htm'=>'htmlmixed','css'=>'css','js'=>'javascript','php'=>'application/x-httpd-php','json'=>'application/json'];
         $lang = $map[$ext] ?? 'htmlmixed';
         $treeRoot = dirname($file);
         $folderName = basename($treeRoot ?: $file);
@@ -70,6 +70,8 @@ body .content { padding:0; }
         <div id="editorToolbar">
             <div style="display:flex;align-items:center;gap:10px;">
                 <button class="btn-icon" onclick="document.getElementById('editorSidebar').classList.toggle('hide')" title="Toggle Sidebar" style="color:var(--text-muted);"><i class="fas fa-bars"></i></button>
+                <span style="font-weight:700;font-size:13px;color:var(--primary);display:flex;align-items:center;gap:5px;"><i class="fas fa-server"></i> <?= APP_NAME ?></span>
+                <span class="sep" style="width:1px;height:18px;background:#333;display:inline-block;"></span>
                 <strong id="editorFileName"><i class="fas fa-file-code"></i> <?= sanitize($fileName) ?></strong>
                 <span class="badge badge-info" id="editorLang"><?= strtoupper($lang) ?></span>
             </div>
