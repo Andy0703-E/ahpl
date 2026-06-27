@@ -10,6 +10,7 @@ mkdir -p "$AHPL_HOME/database" "$AHPL_HOME/logs"
 # Kill existing instances (biar clean start)
 pkill php-fpm 2>/dev/null
 pkill nginx 2>/dev/null
+pkill cloudflared 2>/dev/null
 sleep 1
 
 # Start PHP-FPM

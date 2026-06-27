@@ -122,6 +122,7 @@ fi
 echo ""
 echo "Menjalankan services..."
 pkill php-fpm 2>/dev/null || true
+pkill cloudflared 2>/dev/null || true
 php-fpm -R 2>/dev/null || true
 nginx -s stop 2>/dev/null || true
 nginx 2>/dev/null || true
