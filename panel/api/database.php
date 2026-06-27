@@ -247,7 +247,7 @@ if ($method === 'POST') {
         }
 
         if ($isWrite && empty($input['confirm_write'])) {
-            jsonResponse(['error' => 'Konfirmasi diperlukan untuk query write', 'require_confirm' => true], 400);
+            jsonResponse(['error' => 'require_confirm: Konfirmasi diperlukan untuk query write', 'require_confirm' => true], 400);
         }
 
         $start = microtime(true);
