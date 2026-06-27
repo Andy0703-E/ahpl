@@ -4,9 +4,15 @@ require_once __DIR__ . '/includes/header.php';
 
 $svcNginx = checkServiceStatus('nginx');
 $svcPhp = checkServiceStatus('php-fpm');
+$svcCf = checkServiceStatus('cloudflared');
+$cfUrl = getSetting(SETTING_CLOUDFLARE_URL);
+if (!$cfUrl && $svcCf === 'running') {
+    $cfUrl = getTunnelUrl();
+    if ($cfUrl) setSetting(SETTING_CLOUDFLARE_URL, $cfUrl);
+}
 ?>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:22px;">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:22px;">
     <div class="card" id="nginxCard">
         <div class="card-header"><h3><i class="fas fa-server"></i> Nginx</h3></div>
         <div class="card-body" style="text-align:center;">
@@ -39,10 +45,30 @@ $svcPhp = checkServiceStatus('php-fpm');
         </div>
     </div>
 
+    <div class="card" id="cfCard">
+        <div class="card-header"><h3><i class="fas fa-cloud"></i> Cloudflared</h3></div>
+        <div class="card-body" style="text-align:center;">
+            <div id="cfStatus" class="service-status <?= $svcCf ?>" style="font-size:56px;margin:18px 0;">
+                <i class="fas fa-circle"></i>
+            </div>
+            <p style="color:var(--text-muted);margin-bottom:6px;font-size:13px;font-weight:500;">Tunnel</p>
+            <p id="cfLabel" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:<?= $svcCf === 'running' ? 'var(--success)' : 'var(--text-muted)' ?>;margin-bottom:18px;"><?= ucfirst($svcCf) ?></p>
+            <?php if ($cfUrl): ?>
+                <p style="font-size:11px;word-break:break-all;margin-bottom:18px;background:var(--bg-hover);padding:8px;border-radius:6px;">
+                    <a href="<?= htmlspecialchars($cfUrl) ?>" target="_blank" rel="noopener" style="color:var(--primary);"><?= htmlspecialchars($cfUrl) ?></a>
+                </p>
+            <?php endif; ?>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-success" onclick="serviceAction('cloudflared','start')"><i class="fas fa-play"></i> Start</button>
+                <button class="btn btn-sm btn-danger" onclick="serviceAction('cloudflared','stop')"><i class="fas fa-stop"></i> Stop</button>
+                <button class="btn btn-sm btn-info" onclick="serviceAction('cloudflared','restart')"><i class="fas fa-sync"></i> Restart</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-var SERVICE_IDS = { nginx: 'nginx', 'php-fpm': 'php' };
+var SERVICE_IDS = { nginx: 'nginx', 'php-fpm': 'php', cloudflared: 'cf' };
 
 function updateServiceStatus(s, running) {
     var id = SERVICE_IDS[s];
@@ -56,7 +82,7 @@ function updateServiceStatus(s, running) {
 }
 
 function updateAllStatuses(services) {
-    ['nginx','php-fpm'].forEach(function(s) {
+    ['nginx','php-fpm','cloudflared'].forEach(function(s) {
         updateServiceStatus(s, services[s] === 'running');
     });
 }
@@ -64,13 +90,21 @@ function updateAllStatuses(services) {
 async function checkAllServices() {
     try {
         var res = await fetch('/panel/api/services.php?action=status');
-        if (!res.ok) { updateAllStatuses({ nginx: false, 'php-fpm': false }); return; }
+        if (!res.ok) { updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false }); return; }
         var data = await res.json();
         if (data.services) {
             updateAllStatuses(data.services);
+            var cfLink = document.querySelector('#cfCard .card-body a');
+            var cfBox = cfLink ? cfLink.parentElement : null;
+            if (data.tunnel_url) {
+                if (cfLink) { cfLink.href = data.tunnel_url; cfLink.textContent = data.tunnel_url; }
+                if (cfBox) cfBox.style.display = 'block';
+            } else {
+                if (cfBox) cfBox.style.display = 'none';
+            }
         }
     } catch(e) {
-        updateAllStatuses({ nginx: false, 'php-fpm': false });
+        updateAllStatuses({ nginx: false, 'php-fpm': false, cloudflared: false });
     }
 }
 

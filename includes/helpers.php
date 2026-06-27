@@ -358,6 +358,35 @@ function createBackup($type = 'websites') {
     return ['success' => true, 'file' => $filename, 'size' => filesize($filepath)];
 }
 
+// --- Cloudflared Tunnel URL ---
+
+function getTunnelUrl() {
+    $logFile = TUNNEL_LOG;
+    if (!file_exists($logFile)) return null;
+    $content = @file_get_contents($logFile);
+    if (!$content) return null;
+    if (preg_match('/https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]*\.trycloudflare\.com/', $content, $m)) {
+        return $m[0];
+    }
+    return null;
+}
+
+function saveTunnelUrl() {
+    $url = getTunnelUrl();
+    if ($url) {
+        setSetting(SETTING_CLOUDFLARE_URL, $url);
+        return $url;
+    }
+    return null;
+}
+
+function deleteTunnelUrl() {
+    $db = getDB();
+    $stmt = $db->prepare("DELETE FROM settings WHERE key = :key");
+    $stmt->bindValue(':key', SETTING_CLOUDFLARE_URL, SQLITE3_TEXT);
+    $stmt->execute();
+}
+
 // --- Service Manager ---
 
 function isProcessRunning($name) {
@@ -428,6 +457,11 @@ function startService($service) {
                 $err = file_exists($logFile) ? trim(file_get_contents($logFile)) : 'Tidak ada output';
                 return ['error' => 'cloudflared gagal start: ' . substr($err, 0, 200)];
             }
+            for ($i = 0; $i < 15; $i++) {
+                $url = saveTunnelUrl();
+                if ($url) break;
+                sleep(1);
+            }
             return ['success' => true, 'status' => 'running'];
         default:
             return ['error' => 'Service tidak dikenal'];
@@ -455,6 +489,7 @@ function stopService($service) {
             }
             break;
         case 'cloudflared':
+            deleteTunnelUrl();
             $out = @shell_exec('pkill cloudflared 2>&1');
             break;
         default:

@@ -14,7 +14,15 @@ if ($method === 'GET' && ($_GET['action'] ?? '') === 'status') {
         'php-fpm' => checkServiceStatus('php-fpm'),
         'cloudflared' => checkServiceStatus('cloudflared'),
     ];
-    jsonResponse(['success' => true, 'services' => $services]);
+    $tunnelUrl = null;
+    if ($services['cloudflared'] === 'running') {
+        $tunnelUrl = getSetting(SETTING_CLOUDFLARE_URL);
+        if (!$tunnelUrl) {
+            $tunnelUrl = getTunnelUrl();
+            if ($tunnelUrl) setSetting(SETTING_CLOUDFLARE_URL, $tunnelUrl);
+        }
+    }
+    jsonResponse(['success' => true, 'services' => $services, 'tunnel_url' => $tunnelUrl]);
 }
 
 if ($method === 'POST') {
