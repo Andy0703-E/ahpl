@@ -37,7 +37,8 @@ class TelegramBot {
             return null;
         }
 
-        return $result['result'] ?? null;
+        $val = $result['result'] ?? null;
+        return is_array($val) ? $val : null;
     }
 
     public function callSendMessage(int $chatId, string $text, string $parseMode = 'HTML'): ?array {
