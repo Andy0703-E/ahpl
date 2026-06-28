@@ -158,6 +158,36 @@ function handleTunnel(int $chatId, TelegramBot $bot): void {
     }
 }
 
+function startServiceBg(string $service): void {
+    $cmds = [
+        'nginx' => 'nginx > /dev/null 2>&1 &',
+        'php-fpm' => 'php-fpm -R > /dev/null 2>&1 &',
+        'mariadb' => null,
+        'cloudflared' => null,
+    ];
+    $cmd = $cmds[$service] ?? null;
+    if ($cmd) {
+        @shell_exec($cmd);
+    } elseif ($service === 'mariadb' || $service === 'cloudflared') {
+        startService($service);
+    }
+}
+
+function stopServiceBg(string $service): void {
+    $cmds = [
+        'nginx' => 'nginx -s stop > /dev/null 2>&1 &',
+        'php-fpm' => 'pkill -f "php-fpm: master" > /dev/null 2>&1 &',
+        'mariadb' => null,
+        'cloudflared' => null,
+    ];
+    $cmd = $cmds[$service] ?? null;
+    if ($cmd) {
+        @shell_exec($cmd);
+    } elseif ($service === 'mariadb' || $service === 'cloudflared') {
+        stopService($service);
+    }
+}
+
 function handleServiceCommand(int $chatId, TelegramBot $bot, string $service, string $action): void {
     $serviceNames = [
         'nginx' => 'Nginx',
@@ -169,27 +199,27 @@ function handleServiceCommand(int $chatId, TelegramBot $bot, string $service, st
     $serviceLabel = $serviceNames[$service] ?? $service;
     $actionLabel = $action === 'start' ? 'Memulai' : ($action === 'stop' ? 'Menghentikan' : 'Merestart');
 
-    $bot->sendChatAction($chatId);
     $bot->sendMessage($chatId, "$actionLabel $serviceLabel...");
 
     if ($action === 'restart') {
-        stopService($service);
-        sleep(1);
-        $result = startService($service);
+        stopServiceBg($service);
+        sleep(2);
+        startServiceBg($service);
     } elseif ($action === 'start') {
-        $result = startService($service);
+        startServiceBg($service);
     } else {
-        $result = stopService($service);
+        stopServiceBg($service);
     }
 
-    if (isset($result['success'])) {
-        $status = $result['status'] ?? checkServiceStatus($service);
+    sleep(2);
+
+    $status = checkServiceStatus($service);
+    if ($status === 'running' || $status === 'stopped') {
         $icon = $status === 'running' ? "\xE2\x9C\x85" : "\xE2\xAD\x90";
-        $bot->sendMessage($chatId, "$icon <b>$serviceLabel</b> berhasil di{$action}.\nStatus: <b>" . ucfirst($status) . "</b>");
+        $bot->sendMessage($chatId, "$icon <b>$serviceLabel</b> $action.\nStatus: <b>" . ucfirst($status) . "</b>");
         logAction("bot_{$action}", "$service $action via Telegram bot");
     } else {
-        $err = $result['error'] ?? "Gagal $action $serviceLabel";
-        $bot->sendMessage($chatId, "Gagal!\n$err");
+        $bot->sendMessage($chatId, "Gagal $action $serviceLabel. Status: $status");
     }
 }
 
