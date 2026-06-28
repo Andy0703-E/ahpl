@@ -3,7 +3,9 @@ $sessPath = __DIR__ . '/sessions';
 if (!is_dir($sessPath)) @mkdir($sessPath, 0755, true);
 session_save_path($sessPath);
 session_name('POS_SESSION');
-session_set_cookie_params(['path' => '/pos', 'httponly' => true, 'samesite' => 'Lax']);
+$cookiePath = dirname($_SERVER['SCRIPT_NAME'] ?? '/');
+if ($cookiePath === '/' || $cookiePath === '\\') $cookiePath = '/';
+session_set_cookie_params(['path' => $cookiePath, 'httponly' => true, 'samesite' => 'Lax']);
 session_start();
 
 define('DB_HOST', '127.0.0.1');
