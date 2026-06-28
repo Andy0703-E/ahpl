@@ -161,7 +161,8 @@ function handleTunnel(int $chatId, TelegramBot $bot): void {
 function runServiceBg(string $service, string $action): void {
     $runner = __DIR__ . '/runner.php';
     $phpBin = PHP_BINARY;
-    @shell_exec("$phpBin $runner $service $action > /dev/null 2>&1 &");
+    $log = __DIR__ . '/runner.log';
+    @shell_exec("$phpBin $runner $service $action > $log 2>&1 &");
 }
 
 function handleServiceCommand(int $chatId, TelegramBot $bot, string $service, string $action): void {
