@@ -1,7 +1,4 @@
 <?php
-$sessPath = __DIR__ . '/sessions';
-if (!is_dir($sessPath)) @mkdir($sessPath, 0755, true);
-session_save_path($sessPath);
 session_name('POS_SESSION');
 $cookiePath = dirname($_SERVER['SCRIPT_NAME'] ?? '/');
 if ($cookiePath === '/' || $cookiePath === '\\') $cookiePath = '/';
@@ -11,7 +8,7 @@ session_start();
 define('DB_HOST', '127.0.0.1');
 define('DB_PORT', 3306);
 define('DB_USER', 'root');
-define('DB_PASS', 'ahpl123');
+define('DB_PASS', '');
 define('DB_NAME', 'db_pos');
 
 function getDB() {

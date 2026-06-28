@@ -13,4 +13,3 @@ config/local.php
 *.log
 *.pid
 .env
-storage/server/websites/*/sessions/
