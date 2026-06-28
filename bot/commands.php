@@ -158,34 +158,10 @@ function handleTunnel(int $chatId, TelegramBot $bot): void {
     }
 }
 
-function startServiceBg(string $service): void {
-    $cmds = [
-        'nginx' => 'nginx > /dev/null 2>&1 &',
-        'php-fpm' => 'php-fpm -R > /dev/null 2>&1 &',
-        'mariadb' => null,
-        'cloudflared' => null,
-    ];
-    $cmd = $cmds[$service] ?? null;
-    if ($cmd) {
-        @shell_exec($cmd);
-    } elseif ($service === 'mariadb' || $service === 'cloudflared') {
-        startService($service);
-    }
-}
-
-function stopServiceBg(string $service): void {
-    $cmds = [
-        'nginx' => 'nginx -s stop > /dev/null 2>&1 &',
-        'php-fpm' => 'pkill -f "php-fpm: master" > /dev/null 2>&1 &',
-        'mariadb' => null,
-        'cloudflared' => null,
-    ];
-    $cmd = $cmds[$service] ?? null;
-    if ($cmd) {
-        @shell_exec($cmd);
-    } elseif ($service === 'mariadb' || $service === 'cloudflared') {
-        stopService($service);
-    }
+function runServiceBg(string $service, string $action): void {
+    $runner = __DIR__ . '/runner.php';
+    $phpBin = PHP_BINARY;
+    @shell_exec("$phpBin $runner $service $action > /dev/null 2>&1 &");
 }
 
 function handleServiceCommand(int $chatId, TelegramBot $bot, string $service, string $action): void {
@@ -201,19 +177,11 @@ function handleServiceCommand(int $chatId, TelegramBot $bot, string $service, st
 
     $bot->sendMessage($chatId, "$actionLabel $serviceLabel...");
 
-    if ($action === 'restart') {
-        stopServiceBg($service);
-        sleep(2);
-        startServiceBg($service);
-    } elseif ($action === 'start') {
-        startServiceBg($service);
-    } else {
-        stopServiceBg($service);
-    }
+    runServiceBg($service, $action === 'restart' ? 'restart' : $action);
 
     $expected = ($action === 'start' || $action === 'restart') ? 'running' : 'stopped';
     $status = '';
-    for ($i = 0; $i < 10; $i++) {
+    for ($i = 0; $i < 15; $i++) {
         $status = checkServiceStatus($service);
         if ($status === $expected) break;
         sleep(1);
