@@ -6,10 +6,16 @@ if (!isLoggedIn() && (!isset($_GET['page']) || $_GET['page'] !== 'login')) {
 }
 
 $page = $_GET['page'] ?? 'dashboard';
-$allowed = ['login','dashboard','products','categories','units','suppliers','customers',
+$allowed = ['login','logout','dashboard','products','categories','units','suppliers','customers',
             'sales','sales_history','purchases','stock','reports','settings'];
 
 if (!in_array($page, $allowed)) $page = 'dashboard';
+
+if ($page === 'logout') {
+    $_SESSION = [];
+    setcookie(session_name(), '', time() - 3600, '/');
+    redirect('?page=login');
+}
 
 if (isLoggedIn() && $page === 'login') $page = 'dashboard';
 
@@ -71,7 +77,7 @@ if ($page === 'login') {
         <a href="?page=settings" class="<?= setActive($page,'settings') ?>"><i class="icon">&#9881;</i> Pengaturan</a>
     </div>
     <div class="sidebar-footer">
-        <a href="logout.php"><i class="icon">&#9747;</i> Logout</a>
+        <a href="?page=logout"><i class="icon">&#9747;</i> Logout</a>
     </div>
 </nav>
 <main class="main-content">
