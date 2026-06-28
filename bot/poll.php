@@ -54,21 +54,40 @@ initDatabase();
 $bot = new TelegramBot(BOT_TOKEN);
 $offsetFile = __DIR__ . '/offset.dat';
 
+$me = $bot->call('getMe');
+if ($me === null) {
+    $msg = "Gagal connect ke Telegram API. Cek token dan koneksi internet.\n";
+    fwrite(STDERR, $msg);
+    @file_put_contents($errorLog, $msg, FILE_APPEND);
+    exit(1);
+}
+fwrite(STDOUT, "Bot @" . ($me['username'] ?? 'unknown') . " connected\n");
+
 if (file_exists($offsetFile)) {
     $offset = (int)trim(file_get_contents($offsetFile));
     $bot->setLastUpdateId($offset);
+    fwrite(STDOUT, "Resume from offset: $offset\n");
 }
 
 appLog('Bot polling started', 'INFO');
 fwrite(STDOUT, "Bot polling started. Press Ctrl+C to stop.\n");
 
+$pollCount = 0;
 while (true) {
     try {
         $updates = $bot->getUpdates(BOT_POLL_TIMEOUT);
 
         if ($updates === null) {
+            $pollCount++;
+            if ($pollCount % 6 === 0) fwrite(STDOUT, ".");
             sleep(BOT_SLEEP_INTERVAL);
             continue;
+        }
+
+        $pollCount = 0;
+        $count = count($updates);
+        if ($count > 0) {
+            fwrite(STDOUT, "\nReceived $count update(s)\n");
         }
 
         foreach ($updates as $update) {
@@ -83,6 +102,9 @@ while (true) {
             $userId = $message['from']['id'] ?? 0;
 
             if (empty($text)) continue;
+
+            fwrite(STDOUT, "Got msg: \"$text\" from $userId\n");
+
             if (strpos($text, '/') !== 0) continue;
 
             $parts = explode(' ', $text, 2);
@@ -98,6 +120,9 @@ while (true) {
         }
 
     } catch (Throwable $e) {
+        $msg = "Loop error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine();
+        fwrite(STDERR, "\n$msg\n");
+        @file_put_contents($errorLog, $msg . "\n", FILE_APPEND);
         appLog("Bot error: " . $e->getMessage(), 'ERROR');
         sleep(BOT_SLEEP_INTERVAL);
     }
