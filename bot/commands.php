@@ -211,16 +211,18 @@ function handleServiceCommand(int $chatId, TelegramBot $bot, string $service, st
         stopServiceBg($service);
     }
 
-    sleep(2);
-
-    $status = checkServiceStatus($service);
-    if ($status === 'running' || $status === 'stopped') {
-        $icon = $status === 'running' ? "\xE2\x9C\x85" : "\xE2\xAD\x90";
-        $bot->sendMessage($chatId, "$icon <b>$serviceLabel</b> $action.\nStatus: <b>" . ucfirst($status) . "</b>");
-        logAction("bot_{$action}", "$service $action via Telegram bot");
-    } else {
-        $bot->sendMessage($chatId, "Gagal $action $serviceLabel. Status: $status");
+    $expected = ($action === 'start' || $action === 'restart') ? 'running' : 'stopped';
+    $status = '';
+    for ($i = 0; $i < 10; $i++) {
+        $status = checkServiceStatus($service);
+        if ($status === $expected) break;
+        sleep(1);
     }
+
+    $icon = $status === 'running' ? "\xE2\x9C\x85" : ($status === 'stopped' ? "\xE2\xAD\x90" : "\xE2\x9D\x8C");
+    $label = ucfirst($status);
+    $bot->sendMessage($chatId, "$icon <b>$serviceLabel</b> $action.\nStatus: <b>$label</b>");
+    logAction("bot_{$action}", "$service $action via Telegram bot");
 }
 
 function handleCommand(string $cmd, int $chatId, TelegramBot $bot): void {
