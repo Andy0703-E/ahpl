@@ -49,7 +49,7 @@ function handleStatus(int $chatId, TelegramBot $bot): void {
 
     $text = "<b>Status Service</b>\n\n";
     foreach ($services as $name => $status) {
-        $icon = $status === 'running' ? "\xE2\x9F\xB2" : "\xF0\x9F\x94\xB4";
+        $icon = $status === 'running' ? "\xF0\x9F\x9F\xA2" : "\xF0\x9F\x94\xB4";
         $label = $status === 'running' ? 'Running' : 'Stopped';
         $text .= "$icon <b>" . ucfirst($name) . "</b>: $label\n";
     }
@@ -81,8 +81,10 @@ function handleSites(int $chatId, TelegramBot $bot): void {
     foreach ($sites as $site) {
         $st = websiteStatus($site['folder']);
         $icon = $st === 'online' ? "\xE2\x9C\x85" : "\xE2\x9A\xAA";
-        $text .= "$icon <b>{$site['name']}</b>\n";
-        $text .= "   Folder: <code>{$site['folder']}</code>\n";
+        $name = htmlspecialchars($site['name'], ENT_QUOTES, 'UTF-8');
+        $folder = htmlspecialchars($site['folder'], ENT_QUOTES, 'UTF-8');
+        $text .= "$icon <b>$name</b>\n";
+        $text .= "   Folder: <code>$folder</code>\n";
     }
 
     $bot->sendMessage($chatId, $text);

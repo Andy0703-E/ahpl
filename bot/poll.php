@@ -11,14 +11,17 @@ register_shutdown_function(function() use ($errorLog) {
     if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
         $msg = "FATAL: {$error['message']} in {$error['file']}:{$error['line']}";
         @file_put_contents($errorLog, $msg . "\n", FILE_APPEND);
-        fwrite(STDERR, $msg . "\n");
     }
 });
 
 set_error_handler(function($severity, $message, $file, $line) use ($errorLog) {
-    $msg = "Error: $message in $file:$line";
-    @file_put_contents($errorLog, $msg . "\n", FILE_APPEND);
-    fwrite(STDERR, $msg . "\n");
+    if (!(error_reporting() & $severity)) return false;
+    if (in_array($severity, [E_DEPRECATED, E_USER_DEPRECATED, E_WARNING, E_NOTICE])) {
+        $msg = "WARN: $message in $file:$line";
+        @file_put_contents($errorLog, $msg . "\n", FILE_APPEND);
+        return true;
+    }
+    return false;
 });
 
 try {

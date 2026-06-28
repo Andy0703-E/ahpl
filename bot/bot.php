@@ -26,35 +26,46 @@ class TelegramBot {
         $error = curl_error($ch);
 
         if ($error) {
-            appLog("Telegram API error: $error", 'ERROR');
+            appLog("Telegram API curl error ($method): $error", 'ERROR');
             return null;
         }
 
         $result = json_decode($response, true);
         if (!$result || !($result['ok'] ?? false)) {
-            appLog("Telegram API: " . ($result['description'] ?? 'unknown response'), 'ERROR');
+            $desc = $result['description'] ?? 'unknown response';
+            appLog("Telegram API error ($method): $desc", 'ERROR');
             return null;
         }
 
         return $result['result'] ?? null;
     }
 
-    public function getUpdates(int $timeout = 30): ?array {
-        $data = [
-            'offset' => $this->lastUpdateId + 1,
-            'timeout' => $timeout,
-            'allowed_updates' => json_encode(['message']),
-        ];
-        return $this->call('getUpdates', $data);
-    }
-
-    public function sendMessage(int $chatId, string $text, string $parseMode = 'HTML'): ?array {
+    public function callSendMessage(int $chatId, string $text, string $parseMode = 'HTML'): ?array {
         return $this->call('sendMessage', [
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => $parseMode,
             'disable_web_page_preview' => true,
         ]);
+    }
+
+    public function sendMessage(int $chatId, string $text): ?array {
+        $result = $this->callSendMessage($chatId, $text, 'HTML');
+        if ($result === null) {
+            appLog("sendMessage HTML failed for chat $chatId, trying plain text", 'WARN');
+            $plain = strip_tags($text);
+            $result = $this->callSendMessage($chatId, $plain, '');
+        }
+        return $result;
+    }
+
+    public function getUpdates(int $timeout = 10): ?array {
+        $data = [
+            'offset' => $this->lastUpdateId + 1,
+            'timeout' => $timeout,
+            'allowed_updates' => json_encode(['message']),
+        ];
+        return $this->call('getUpdates', $data);
     }
 
     public function sendChatAction(int $chatId, string $action = 'typing'): void {
