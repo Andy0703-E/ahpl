@@ -53,14 +53,18 @@ if (!empty($_FILES)) {
         $totalFiles = $zip->numFiles;
 
         for ($i = 0; $i < $totalFiles; $i++) {
-            $entryName = $zip->getNameIndex($i);
+            $entryName = str_replace('\\', '/', $zip->getNameIndex($i));
             $entryPath = $fullDir . '/' . $entryName;
             $entryDir = dirname($entryPath);
             if (!is_dir($entryDir)) {
                 mkdir($entryDir, 0755, true);
             }
             if (substr($entryName, -1) !== '/') {
-                $zip->extractTo($fullDir, $entryName);
+                $destPath = $fullDir . '/' . $entryName;
+                $content = $zip->getFromIndex($i);
+                if ($content !== false) {
+                    file_put_contents($destPath, $content);
+                }
             }
         }
         $zip->close();
@@ -126,14 +130,18 @@ if ($action === 'extract') {
         $destDir = dirname($fullPath);
 
         for ($i = 0; $i < $totalFiles; $i++) {
-            $entryName = $zip->getNameIndex($i);
+            $entryName = str_replace('\\', '/', $zip->getNameIndex($i));
             $entryPath = $destDir . '/' . $entryName;
             $entryDir = dirname($entryPath);
             if (!is_dir($entryDir)) {
                 mkdir($entryDir, 0755, true);
             }
             if (substr($entryName, -1) !== '/') {
-                $zip->extractTo($destDir, $entryName);
+                $destPath = $destDir . '/' . $entryName;
+                $content = $zip->getFromIndex($i);
+                if ($content !== false) {
+                    file_put_contents($destPath, $content);
+                }
             }
         }
         $zip->close();
