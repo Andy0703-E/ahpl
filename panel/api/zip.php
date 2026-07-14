@@ -51,8 +51,20 @@ if (!empty($_FILES)) {
             jsonResponse(['error' => 'Gagal membuka ZIP (code: ' . $code . ')'], 400);
         }
         $totalFiles = $zip->numFiles;
-        $extractOk = $zip->extractTo($fullDir);
+
+        for ($i = 0; $i < $totalFiles; $i++) {
+            $entryName = $zip->getNameIndex($i);
+            $entryPath = $fullDir . '/' . $entryName;
+            $entryDir = dirname($entryPath);
+            if (!is_dir($entryDir)) {
+                mkdir($entryDir, 0755, true);
+            }
+            if (substr($entryName, -1) !== '/') {
+                $zip->extractTo($fullDir, $entryName);
+            }
+        }
         $zip->close();
+        $extractOk = true;
     } catch (Throwable $e) {
         if (file_exists($dest)) unlink($dest);
         jsonResponse(['error' => 'Gagal mengekstrak: ' . $e->getMessage()], 500);
@@ -113,9 +125,16 @@ if ($action === 'extract') {
         $totalFiles = $zip->numFiles;
         $destDir = dirname($fullPath);
 
-        if (!$zip->extractTo($destDir)) {
-            $zip->close();
-            jsonResponse(['error' => 'Gagal mengekstrak ZIP'], 500);
+        for ($i = 0; $i < $totalFiles; $i++) {
+            $entryName = $zip->getNameIndex($i);
+            $entryPath = $destDir . '/' . $entryName;
+            $entryDir = dirname($entryPath);
+            if (!is_dir($entryDir)) {
+                mkdir($entryDir, 0755, true);
+            }
+            if (substr($entryName, -1) !== '/') {
+                $zip->extractTo($destDir, $entryName);
+            }
         }
         $zip->close();
     } catch (Throwable $e) {
