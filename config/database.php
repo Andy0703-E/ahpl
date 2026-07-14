@@ -24,6 +24,18 @@ function getMariaDBNoDB() {
     ]);
 }
 
+function getMySQLi($dbName = null) {
+    static $conn = null;
+    if ($conn === null) {
+        $conn = new mysqli(MARIADB_HOST, MARIADB_USER, MARIADB_PASS, $dbName ?: MARIADB_NAME, MARIADB_PORT);
+        if ($conn->connect_error) {
+            die("Koneksi gagal: " . $conn->connect_error);
+        }
+        $conn->set_charset("utf8mb4");
+    }
+    return $conn;
+}
+
 function getMariaDBWithDB($dbName) {
     $dsn = "mysql:host=" . MARIADB_HOST . ";port=" . MARIADB_PORT . ";dbname=" . $dbName . ";charset=utf8mb4";
     try {
